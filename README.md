@@ -19,7 +19,7 @@ from optimization.events import EventDispatcher, Stage, OptimizationStageStrateg
 from optimization.optimization_engine import OptimizationEngine
 from optimization.solution_initializer import SolutionInitializer
 from optimization.update_rule import UpdateRule
-from optimization.convergence_checker import ConvergenceChecker
+from optimization.convergence_checker import CompositeConvergenceChecker, MaxIterationsStop
 from optimization.optimization_problem import OptimizationProblem
 from optimization.state import OptimizationState
 
@@ -75,42 +75,6 @@ class GradientLikeUpdate(UpdateRule[float, float]):
 		self._x = x_new
 		engine.population.update_single(x_new, f_new)
 
-class MaxSteps(ConvergenceChecker[float, float]):
-	def __init__(self, max_iter: int = 50) -> None:
-		self._max = max_iter
-		self._it = 0
-
-	def set_dispatcher(self, dispatcher: EventDispatcher[float, float]) -> None:
-		self._dispatcher = dispatcher  # optional, unused here
-
-	@property
-	def iteration(self) -> int:
-		return self._it
-
-	def reset(self) -> None:
-		self._it = 0
-
-	def advance_iteration(self) -> None:
-		# Not used by the engine; iteration is managed here in should_continue
-		self._it += 1
-
-	def should_continue(self, population: Population[float, float]) -> bool:
-		# Own the loop counter here
-		self._it += 1
-		return self._it <= self._max
-
-	def on_run_completed(
-		self,
-		*,
-		best_solution: float,
-		best_objective: float,
-		elapsed: float,
-		evaluations: int,
-		success: bool,
-		termination_reason: str,
-	) -> None:
-		pass
-
 # 3) Optional: a single strategy handling all stages
 class PrintObserver(OptimizationStageStrategy[float, float]):
 	def execute(self, engine: OptimizationEngine[float, float], stage: Stage) -> None:
@@ -134,7 +98,10 @@ class PrintObserver(OptimizationStageStrategy[float, float]):
 problem = SimpleProblem()
 updater = GradientLikeUpdate(problem)
 initializer = SimpleInitializer()
-convergence = MaxSteps(30)
+# Convergence as a composition of simple stop strategies
+convergence = CompositeConvergenceChecker[float, float]([
+	MaxIterationsStop(30),
+])
 dispatcher: EventDispatcher[float, float] = EventDispatcher()
 dispatcher.add_strategy(Stage.RUN_START, PrintObserver())
 dispatcher.add_strategy(Stage.ITERATION, PrintObserver())

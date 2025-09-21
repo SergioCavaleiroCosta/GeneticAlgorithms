@@ -48,6 +48,11 @@ class OptimizationEngine(Generic[ST, OT]):
         """Current population (always present; may be empty before initialize())."""
         return self._state.population
 
+    @property
+    def problem(self):
+        """Expose the associated optimization problem via the updater."""
+        return self._updater.problem
+
     def initialize(self) -> Population[ST, OT]:
         """Reset and prepare the initial state for a run.
 
@@ -73,13 +78,13 @@ class OptimizationEngine(Generic[ST, OT]):
         self._state.begin_run(
             initial_solution=current_solution,
             initial_objective=current_objective,
-            evaluations=problem.get_evaluation_count(),
+            evaluations=problem.evaluation_count,
         )
         # Emit run-start via dispatcher strategies
         self._dispatcher.emit(engine=self, stage=Stage.RUN_START)
 
         # Delegate continuation decision to the convergence checker
-        while self._convergence.should_continue(self.population):
+        while self._convergence.should_continue(self):
             # Perform one complete step (algorithm + bookkeeping + emit)
             self._step_once()
 
@@ -97,7 +102,7 @@ class OptimizationEngine(Generic[ST, OT]):
             best_solution=result.best_solution,
             best_objective=result.best_objective,
             elapsed=elapsed,
-            evaluations=problem.get_evaluation_count(),
+            evaluations=problem.evaluation_count,
             success=result.success,
             termination_reason=result.termination_reason,
         )
