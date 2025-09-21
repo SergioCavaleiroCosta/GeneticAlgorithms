@@ -55,15 +55,6 @@ class OptimizationEngine(Generic[ST, OT]):
         initial_objective = problem.evaluate(initial_solution)
         population: Population[ST, OT] = Population([initial_solution], [initial_objective])
         self._updater.seed(initial_solution, initial_objective)
-        # Emit run started
-        self._dispatcher.emit(
-            RunStarted(
-                elapsed=0.0,
-                evaluations=problem.get_evaluation_count(),
-                initial_solution=initial_solution,
-                initial_objective=initial_objective,
-            )
-        )
         return population, initial_solution, initial_objective
 
     def run(self) -> OptimizationResult[ST, OT]:
@@ -71,6 +62,16 @@ class OptimizationEngine(Generic[ST, OT]):
         population, current_solution, current_objective = self.initialize()
         problem = self._updater.problem
         history: List[OT] = [current_objective]
+
+        # Emit run started (moved from initialize to run)
+        self._dispatcher.emit(
+            RunStarted(
+                elapsed=0.0,
+                evaluations=problem.get_evaluation_count(),
+                initial_solution=current_solution,
+                initial_objective=current_objective,
+            )
+        )
 
         # Delegate continuation decision to the convergence checker
         while self._convergence.should_continue(population):
