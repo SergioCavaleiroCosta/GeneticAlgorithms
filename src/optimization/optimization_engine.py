@@ -41,11 +41,8 @@ class OptimizationEngine(Generic[ST, OT]):
         # Wire dispatcher into strategies if supported
         self._convergence.set_dispatcher(self._dispatcher)
         self._updater.set_dispatcher(self._dispatcher)
-        # Provide dispatcher to state so it can emit lifecycle events
-        try:
-            self._state.dispatcher = self._dispatcher  # type: ignore[attr-defined]
-        except AttributeError:
-            pass
+        # Note: state can emit events if the caller injects a dispatcher into it.
+        # The engine does not auto-wire the state's dispatcher to keep behavior opt-in.
         
     @property
     def population(self) -> Population[ST, OT]:
