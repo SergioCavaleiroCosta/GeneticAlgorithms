@@ -47,7 +47,6 @@ class RealVectorInitializer(SolutionInitializer[NDArrayFloat, float]):
         for _ in range(self._population_size):
             s = sample_one()
             obj = problem.evaluate(s)
-            problem.increment_evaluation_count()
             candidates.append(s)
             objectives.append(obj)
 

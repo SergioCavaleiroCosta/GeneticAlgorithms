@@ -138,7 +138,6 @@ class RealVectorGA(UpdateRule[NDArrayFloat, float]):
                 if len(new_candidates) >= self._population_size:
                     break
                 obj = self._problem.evaluate(child)
-                self._problem.increment_evaluation_count()
                 new_candidates.append(child)
                 new_objectives.append(float(obj))
 
