@@ -8,7 +8,7 @@ from .solution_initializer import SolutionInitializer
 from .update_rule import UpdateRule
 from .convergence_checker import ConvergenceChecker
 from .population import Population
-from .events import EventDispatcher
+from .events import EventDispatcher, Stage
 from .state import OptimizationState
 
 
@@ -72,7 +72,7 @@ class OptimizationEngine(Generic[ST, OT]):
             evaluations=problem.get_evaluation_count(),
         )
         # Emit run-start via dispatcher strategies
-        self._dispatcher.emit_run_start(engine=self)
+        self._dispatcher.emit(engine=self, stage=Stage.RUN_START)
 
         # Delegate continuation decision to the convergence checker
         while self._convergence.should_continue(self.population):
@@ -89,7 +89,7 @@ class OptimizationEngine(Generic[ST, OT]):
                 evaluations=problem.get_evaluation_count(),
             )
             # Emit iteration via dispatcher strategies
-            self._dispatcher.emit_iteration(engine=self)
+            self._dispatcher.emit(engine=self, stage=Stage.ITERATION)
 
         elapsed = perf_counter() - start
         result = self._state.build_result(
@@ -99,7 +99,7 @@ class OptimizationEngine(Generic[ST, OT]):
             termination_reason="stopped by criteria",
         )
         # Emit run-end via dispatcher strategies then notify convergence
-        self._dispatcher.emit_run_end(engine=self)
+        self._dispatcher.emit(engine=self, stage=Stage.RUN_END)
         self._convergence.on_run_completed(
             best_solution=result.best_solution,
             best_objective=result.best_objective,

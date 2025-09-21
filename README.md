@@ -1,36 +1,42 @@
-# Optimization Engine (typed, event-driven)
+# Optimization Engine (typed, stage-based)
 
-Strictly typed, Pylance-clean optimization loop with pluggable components and stage-based events. No use of `Any`.
+Strictly typed, Pylance-clean optimization loop with pluggable components and stage-based strategy hooks. No use of `Any`.
 
 Core ideas:
 - Engine orchestrates initialize → iterate (update) → converge.
-- Convergence owns the loop condition via `should_continue(population)`.
+- Convergence owns the loop condition via `should_continue(population)` and tracks iterations internally.
 - Evaluation counting lives inside the problem (objective) and is queried by others.
 - Population abstraction supports both single- and multi-candidate flows.
-- Event dispatcher emits stage-scoped contexts: `run_start`, `iteration`, `run_end` and can run registered strategies for each stage.
+- Event dispatcher runs strategies per Stage (RUN_START, ITERATION, RUN_END) via a single execute(engine, stage) method.
 
 ## Quickstart
 
 Below is a minimal end-to-end example. It uses a single-candidate flow but the same engine works for population-based methods.
 
 ```python
-from optimization.types import ST, OT
 from optimization.population import Population
-from optimization.events import EventDispatcher, IterationStrategy, RunStartStrategy, RunEndStrategy
+from optimization.events import EventDispatcher, Stage, OptimizationStageStrategy
 from optimization.optimization_engine import OptimizationEngine
 from optimization.solution_initializer import SolutionInitializer
 from optimization.update_rule import UpdateRule
 from optimization.convergence_checker import ConvergenceChecker
-from optimization.optimization_result import OptimizationResult
+from optimization.optimization_problem import OptimizationProblem
+from optimization.state import OptimizationState
 
-# 1) Define your problem (must be provided/owned by the UpdateRule)
-class SimpleProblem:
+# 1) Define your problem (used by the UpdateRule)
+class SimpleProblem(OptimizationProblem[float, float]):
 	def __init__(self) -> None:
 		self._evals = 0
 
 	def evaluate(self, x: float) -> float:
 		self._evals += 1
 		return (x - 3.0) ** 2  # convex parabola with optimum at x=3
+
+	def is_feasible(self, x: float) -> bool:
+		return True
+
+	def generate_random_solution(self) -> float:
+		return 0.0
 
 	def get_evaluation_count(self) -> int:
 		return self._evals
@@ -40,71 +46,89 @@ class SimpleInitializer(SolutionInitializer[float, float]):
 	def initialize(self, problem: SimpleProblem, updater: UpdateRule[float, float]) -> Population[float, float]:
 		x0 = 0.0
 		f0 = problem.evaluate(x0)
+		updater.seed(x0, f0)  # seed updater with the initial state
 		return Population.from_single(x0, f0)
 
 class GradientLikeUpdate(UpdateRule[float, float]):
 	def __init__(self, problem: SimpleProblem, step: float = 0.1) -> None:
 		self._problem = problem
 		self._step = step
+		self._x: float | None = None
+
+	def set_dispatcher(self, dispatcher: EventDispatcher[float, float]) -> None:
+		self._dispatcher = dispatcher  # optional, unused here
 
 	@property
 	def problem(self) -> SimpleProblem:
 		return self._problem
 
-	def set_dispatcher(self, dispatcher: EventDispatcher[float, float]) -> None:
-		# Optional: capture for custom side-effects; unused here
-		self._dispatcher = dispatcher
+	def seed(self, initial_solution: float, initial_objective: float) -> None:
+		self._x = initial_solution
 
 	def step(self, convergence: ConvergenceChecker[float, float]) -> tuple[float, float]:
-		# finite-difference gradient
+		assert self._x is not None, "Updater must be seeded before stepping"
 		eps = 1e-6
-		# current point is last of the population
-		x = convergence.last_state.current_solution  # provided by engine via population
-		f = self._problem.evaluate(x)
-		g = (self._problem.evaluate(x + eps) - f) / eps
-		x_new = x - self._step * g
+		f = self._problem.evaluate(self._x)
+		g = (self._problem.evaluate(self._x + eps) - f) / eps
+		x_new = self._x - self._step * g
 		f_new = self._problem.evaluate(x_new)
+		self._x = x_new
 		return x_new, f_new
 
 class MaxSteps(ConvergenceChecker[float, float]):
 	def __init__(self, max_iter: int = 50) -> None:
-		self._max_iter = max_iter
-		self.iteration = 0
-		self.last_state = None  # engine keeps population/state; used here for illustration
+		self._max = max_iter
+		self._it = 0
 
 	def set_dispatcher(self, dispatcher: EventDispatcher[float, float]) -> None:
-		self._dispatcher = dispatcher
+		self._dispatcher = dispatcher  # optional, unused here
+
+	@property
+	def iteration(self) -> int:
+		return self._it
 
 	def reset(self) -> None:
-		self.iteration = 0
+		self._it = 0
+
+	def advance_iteration(self) -> None:
+		# Not used by the engine; iteration is managed here in should_continue
+		self._it += 1
 
 	def should_continue(self, population: Population[float, float]) -> bool:
-		self.iteration += 1
-		# keep a handle if needed by the updater
-		class _Wrapper:
-			def __init__(self, pop: Population[float, float]):
-				self._pop = pop
-			@property
-			def current_solution(self) -> float:
-				return self._pop.current_solution
-		self.last_state = _Wrapper(population)
-		return self.iteration <= self._max_iter
+		# Own the loop counter here
+		self._it += 1
+		return self._it <= self._max
 
-	def on_run_completed(self, **kwargs) -> None:
+	def on_run_completed(
+		self,
+		*,
+		best_solution: float,
+		best_objective: float,
+		elapsed: float,
+		evaluations: int,
+		success: bool,
+		termination_reason: str,
+	) -> None:
 		pass
 
-# 3) Optional: Strategies to react to stages
-class PrintStart(RunStartStrategy[float, float]):
-	def on_run_start(self, initial_solution: float, initial_objective: float, evaluations: int, elapsed: float) -> None:
-		print(f"Run started at x={initial_solution:.3f}, f={initial_objective:.3f}, evals={evaluations}")
-
-class PrintIter(IterationStrategy[float, float]):
-	def on_iteration(self, iteration: int, elapsed: float, current_solution: float, current_objective: float, best_solution: float, best_objective: float, evaluations: int) -> None:
-		print(f"it={iteration:03d} x={current_solution:.4f} f={current_objective:.6f} best={best_objective:.6f} evals={evaluations}")
-
-class PrintEnd(RunEndStrategy[float, float]):
-	def on_run_end(self, iterations: int, elapsed: float, best_solution: float, best_objective: float, evaluations: int, success: bool, termination_reason: str) -> None:
-		print(f"done in {iterations} iters, best x={best_solution:.3f}, f={best_objective:.6f}, evals={evaluations}")
+# 3) Optional: a single strategy handling all stages
+class PrintObserver(OptimizationStageStrategy[float, float]):
+	def execute(self, engine: OptimizationEngine[float, float], stage: Stage) -> None:
+		pop = engine.population
+		it = engine._convergence.iteration  # iteration is owned by convergence
+		evals = engine._updater.problem.get_evaluation_count()
+		if stage is Stage.RUN_START:
+			print(f"Run started: x={pop.current_solution:.3f}, f={pop.current_objective:.6f}, evals={evals}")
+		elif stage is Stage.ITERATION:
+			print(
+				f"it={it:03d} x={pop.current_solution:.4f} f={pop.current_objective:.6f} "
+				f"best={pop.best_objective:.6f} evals={evals}"
+			)
+		elif stage is Stage.RUN_END:
+			print(
+				f"done in {it} iters, best x={pop.best_solution:.3f}, "
+				f"f={pop.best_objective:.6f}, evals={evals}"
+			)
 
 # 4) Wire everything and run
 problem = SimpleProblem()
@@ -112,20 +136,18 @@ updater = GradientLikeUpdate(problem)
 initializer = SimpleInitializer()
 convergence = MaxSteps(30)
 dispatcher: EventDispatcher[float, float] = EventDispatcher()
-dispatcher.add_run_start_strategy(PrintStart())
-dispatcher.add_iteration_strategy(PrintIter())
-dispatcher.add_run_end_strategy(PrintEnd())
+dispatcher.add_strategy(Stage.RUN_START, PrintObserver())
+dispatcher.add_strategy(Stage.ITERATION, PrintObserver())
+dispatcher.add_strategy(Stage.RUN_END, PrintObserver())
 
-from optimization.state import OptimizationState
 state: OptimizationState[float, float] = OptimizationState()
-
 engine = OptimizationEngine(initializer, updater, convergence, state, dispatcher)
-result: OptimizationResult[float, float] = engine.run()
+result = engine.run()
 print("Result:", result.best_solution, result.best_objective)
 ```
 
 Notes:
-- The engine emits stage events using `dispatcher.emit_run_start`, `emit_iteration`, and `emit_run_end` so your strategies always run, and context events are emitted to listeners as well.
+- The engine emits a single stage signal with `dispatcher.emit(engine, stage)` at RUN_START, each ITERATION, and RUN_END. Strategies receive the engine and read what they need.
 - The `Population` always exists; before initialization it may be empty. After `initialize()`, it contains one or more evaluated candidates.
 - Iteration counting and loop control are encapsulated in your `ConvergenceChecker`.
 - Evaluation counting is owned by the problem (queried via `problem.get_evaluation_count()`).
