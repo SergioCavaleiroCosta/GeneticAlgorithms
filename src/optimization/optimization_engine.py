@@ -10,9 +10,9 @@ from .convergence_checker import ConvergenceChecker
 from .population import Population
 from .events import (
     EventDispatcher,
-    IterationCompleted,
-    RunStarted,
-    RunCompleted,
+    RunStartContext,
+    IterationContext,
+    RunEndContext,
 )
 from .state import OptimizationState
 
@@ -76,10 +76,10 @@ class OptimizationEngine(Generic[ST, OT]):
             initial_objective=current_objective,
             evaluations=problem.get_evaluation_count(),
         )
-        # Emit run-stage event
+        # Emit run-start stage with context; user strategies decide what to do
         self._dispatcher.emit_to(
-            "run",
-            RunStarted(
+            "run_start",
+            RunStartContext(
                 elapsed=0.0,
                 evaluations=problem.get_evaluation_count(),
                 initial_solution=current_solution,
@@ -101,10 +101,10 @@ class OptimizationEngine(Generic[ST, OT]):
                 elapsed=perf_counter() - start,
                 evaluations=problem.get_evaluation_count(),
             )
-            # Emit iteration completed for listeners on iteration channel
+            # Emit iteration stage with context
             self._dispatcher.emit_to(
                 "iteration",
-                IterationCompleted(
+                IterationContext(
                     iteration=self._convergence.iteration,
                     elapsed=perf_counter() - start,
                     current_solution=current_solution,
@@ -122,10 +122,10 @@ class OptimizationEngine(Generic[ST, OT]):
             success=True,
             termination_reason="stopped by criteria",
         )
-        # Emit completion event then notify convergence
+        # Emit run-end stage with context then notify convergence
         self._dispatcher.emit_to(
-            "completion",
-            RunCompleted(
+            "run_end",
+            RunEndContext(
                 iterations=self._convergence.iteration,
                 elapsed=elapsed,
                 best_solution=result.best_solution,

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Generic, List, Protocol, Dict, Literal
 from .types import ST, OT
 # Stage channels for event routing
-Channel = Literal["run", "iteration", "completion"]
+Channel = Literal["run_start", "iteration", "run_end"]
 
 
 # Base event type (non-generic for listener typing simplicity)
@@ -12,9 +12,9 @@ class OptimizationEventBase:
     """Marker base class for optimization events."""
     pass
 
-# Event payloads
+# Stage contexts (preferred names)
 @dataclass(frozen=True)
-class RunStarted(OptimizationEventBase, Generic[ST, OT]):
+class RunStartContext(OptimizationEventBase, Generic[ST, OT]):
     elapsed: float
     evaluations: int
     initial_solution: ST
@@ -35,7 +35,7 @@ class BestImproved(OptimizationEventBase, Generic[OT]):
 
 
 @dataclass(frozen=True)
-class IterationCompleted(OptimizationEventBase, Generic[ST, OT]):
+class IterationContext(OptimizationEventBase, Generic[ST, OT]):
     iteration: int
     elapsed: float
     current_solution: ST
@@ -46,7 +46,7 @@ class IterationCompleted(OptimizationEventBase, Generic[ST, OT]):
 
 
 @dataclass(frozen=True)
-class RunCompleted(OptimizationEventBase, Generic[ST, OT]):
+class RunEndContext(OptimizationEventBase, Generic[ST, OT]):
     iterations: int
     elapsed: float
     best_solution: ST
@@ -54,6 +54,11 @@ class RunCompleted(OptimizationEventBase, Generic[ST, OT]):
     evaluations: int
     success: bool
     termination_reason: str
+
+# Backward-compatible aliases
+RunStarted = RunStartContext
+IterationCompleted = IterationContext
+RunCompleted = RunEndContext
 
 
 class OptimizationEventListener(Protocol):
@@ -73,9 +78,9 @@ class EventDispatcher(Generic[ST, OT]):
     def __init__(self) -> None:
         self._listeners: List[OptimizationEventListener] = []
         self._channel_listeners: Dict[Channel, List[OptimizationEventListener]] = {
-            "run": [],
+            "run_start": [],
             "iteration": [],
-            "completion": [],
+            "run_end": [],
         }
 
     # Global subscriptions
@@ -117,6 +122,10 @@ class EventDispatcher(Generic[ST, OT]):
 
 __all__ = [
     "Channel",
+    "RunStartContext",
+    "RunEndContext",
+    "IterationContext",
+    # Aliases for backward compatibility
     "RunStarted",
     "IterationStarted",
     "BestImproved",
