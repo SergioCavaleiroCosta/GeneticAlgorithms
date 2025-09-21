@@ -1,6 +1,6 @@
 """Generic optimization engine orchestrating initialization, stepping, and convergence."""
 from __future__ import annotations
-from typing import Generic, List, Optional
+from typing import Generic, List
 from time import perf_counter
 from .types import ST, OT
 from .optimization_result import OptimizationResult
@@ -34,7 +34,7 @@ class OptimizationEngine(Generic[ST, OT]):
         self._updater = updater
         self._convergence = convergence
         self._dispatcher: EventDispatcher[ST, OT] = dispatcher or EventDispatcher()
-        self._population: Optional[Population[ST, OT]] = None
+        self._population: Population[ST, OT] = Population([], [])
         # Wire dispatcher into strategies if supported
         try:
             self._convergence.set_dispatcher(self._dispatcher)
@@ -47,9 +47,7 @@ class OptimizationEngine(Generic[ST, OT]):
 
     @property
     def population(self) -> Population[ST, OT]:
-        """Current population (available after initialize()/run())."""
-        if self._population is None:
-            raise RuntimeError("Population is not initialized. Call initialize() or run() first.")
+        """Current population (always present; may be empty before initialize())."""
         return self._population
 
     def initialize(self) -> tuple[ST, OT]:
@@ -61,8 +59,7 @@ class OptimizationEngine(Generic[ST, OT]):
         problem = self._updater.problem
         initial_solution = self._initializer.initialize(problem)
         initial_objective = problem.evaluate(initial_solution)
-        population: Population[ST, OT] = Population([initial_solution], [initial_objective])
-        self._population = population
+        self._population = Population([initial_solution], [initial_objective])
         self._updater.seed(initial_solution, initial_objective)
         return initial_solution, initial_objective
 

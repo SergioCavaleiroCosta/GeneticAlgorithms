@@ -14,8 +14,7 @@ class Population(Generic[ST, OT]):
     def __init__(self, candidates: List[ST], objectives: List[OT]) -> None:
         if len(candidates) != len(objectives):
             raise ValueError("candidates and objectives must have the same length")
-        if not candidates:
-            raise ValueError("population must contain at least one candidate")
+        # Allow empty population; best index will be -1 until first candidate arrives
         self._candidates: List[ST] = list(candidates)
         self._objectives: List[OT] = list(objectives)
         self._best_index: int = self._compute_best_index()
@@ -25,6 +24,8 @@ class Population(Generic[ST, OT]):
         return cls([solution], [objective])
 
     def _compute_best_index(self) -> int:
+        if not self._objectives:
+            return -1
         best_i = 0
         best_val = self._objectives[0]
         for i in range(1, len(self._objectives)):
@@ -47,43 +48,51 @@ class Population(Generic[ST, OT]):
 
     @property
     def best_index(self) -> int:
+        if self.size == 0 or self._best_index < 0:
+            raise RuntimeError("Population is empty; no best index available")
         return self._best_index
 
     @property
     def best_solution(self) -> ST:
+        if self.size == 0 or self._best_index < 0:
+            raise RuntimeError("Population is empty; no best solution available")
         return self._candidates[self._best_index]
 
     @property
     def best_objective(self) -> OT:
+        if self.size == 0 or self._best_index < 0:
+            raise RuntimeError("Population is empty; no best objective available")
         return self._objectives[self._best_index]
 
     @property
     def current_solution(self) -> ST:
         # Convention: current is the last candidate
+        if self.size == 0:
+            raise RuntimeError("Population is empty; no current solution available")
         return self._candidates[-1]
 
     @property
     def current_objective(self) -> OT:
+        if self.size == 0:
+            raise RuntimeError("Population is empty; no current objective available")
         return self._objectives[-1]
 
     def update_single(self, solution: ST, objective: OT) -> None:
         """Append or replace current candidate with a new one and update best."""
-        # Replace current (last) with new current
+        # Replace current (last) with new current or append if empty
         if self._candidates:
             self._candidates[-1] = solution
             self._objectives[-1] = objective
         else:
             self._candidates.append(solution)
             self._objectives.append(objective)
-        # Update best
-        if objective < self._objectives[self._best_index]:
-            self._best_index = len(self._objectives) - 1
+        # Recompute best to keep invariant correct even when current worsens
+        self._best_index = self._compute_best_index()
 
     def replace_all(self, candidates: List[ST], objectives: List[OT]) -> None:
         if len(candidates) != len(objectives):
             raise ValueError("candidates and objectives must have the same length")
-        if not candidates:
-            raise ValueError("population must contain at least one candidate")
+        # Allow replacing with an empty population
         self._candidates = list(candidates)
         self._objectives = list(objectives)
         self._best_index = self._compute_best_index()
