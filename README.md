@@ -65,7 +65,7 @@ class GradientLikeUpdate(UpdateRule[float, float]):
 	def seed(self, initial_solution: float, initial_objective: float) -> None:
 		self._x = initial_solution
 
-	def step(self, convergence: ConvergenceChecker[float, float]) -> tuple[float, float]:
+	def step(self, engine: OptimizationEngine[float, float]) -> None:
 		assert self._x is not None, "Updater must be seeded before stepping"
 		eps = 1e-6
 		f = self._problem.evaluate(self._x)
@@ -73,7 +73,8 @@ class GradientLikeUpdate(UpdateRule[float, float]):
 		x_new = self._x - self._step * g
 		f_new = self._problem.evaluate(x_new)
 		self._x = x_new
-		return x_new, f_new
+		engine.population.update_single(x_new, f_new)
+	engine.emit(Stage.ITERATION)
 
 class MaxSteps(ConvergenceChecker[float, float]):
 	def __init__(self, max_iter: int = 50) -> None:
@@ -147,7 +148,7 @@ print("Result:", result.best_solution, result.best_objective)
 ```
 
 Notes:
-- The engine emits a single stage signal with `dispatcher.emit(engine, stage)` at RUN_START, each ITERATION, and RUN_END. Strategies receive the engine and read what they need.
+- The engine emits a stage signal with `dispatcher.emit(engine, stage)` at RUN_START and RUN_END. ITERATION is emitted from the updater via `engine.emit(Stage.ITERATION)`.
 - The `Population` always exists; before initialization it may be empty. After `initialize()`, it contains one or more evaluated candidates.
 - Iteration counting and loop control are encapsulated in your `ConvergenceChecker`.
 - Evaluation counting is owned by the problem (queried via `problem.get_evaluation_count()`).

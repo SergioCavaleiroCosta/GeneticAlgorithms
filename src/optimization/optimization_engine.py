@@ -33,11 +33,15 @@ class OptimizationEngine(Generic[ST, OT]):
         self._updater = updater
         self._convergence = convergence
         self._dispatcher: EventDispatcher[ST, OT] = dispatcher or EventDispatcher()
+        
         # Live state is the single source of truth
         self._state: OptimizationState[ST, OT] = state
+        
         # Wire dispatcher into strategies if supported
         self._convergence.set_dispatcher(self._dispatcher)
         self._updater.set_dispatcher(self._dispatcher)
+        # Run timing (set at the start of run())
+        self._run_start_time: float = 0.0
         
     @property
     def population(self) -> Population[ST, OT]:
@@ -59,7 +63,7 @@ class OptimizationEngine(Generic[ST, OT]):
         return population
 
     def run(self) -> OptimizationResult[ST, OT]:
-        start = perf_counter()
+        self._run_start_time = perf_counter()
         self.initialize()
         current_solution = self._state.current_solution
         current_objective = self._state.current_objective
@@ -76,22 +80,11 @@ class OptimizationEngine(Generic[ST, OT]):
 
         # Delegate continuation decision to the convergence checker
         while self._convergence.should_continue(self.population):
-            # Step
-            new_solution, new_objective = self._updater.step(self._convergence)
-            current_solution, current_objective = new_solution, new_objective
+            # Perform one complete step (algorithm + bookkeeping + emit)
+            self._step_once()
 
-            # Update population with new current
-            self.population.update_single(current_solution, current_objective)
-            # Let state record iteration metadata
-            self._state.record_iteration(
-                iteration=self._convergence.iteration,
-                elapsed=perf_counter() - start,
-                evaluations=problem.get_evaluation_count(),
-            )
-            # Emit iteration via dispatcher strategies
-            self._dispatcher.emit(engine=self, stage=Stage.ITERATION)
 
-        elapsed = perf_counter() - start
+        elapsed = perf_counter() - self._run_start_time
         result = self._state.build_result(
             execution_time=elapsed,
             iterations=self._convergence.iteration,
@@ -109,6 +102,23 @@ class OptimizationEngine(Generic[ST, OT]):
             termination_reason=result.termination_reason,
         )
         return result
+
+    # Internal template method: one complete iteration step
+    def _step_once(self) -> None:
+        
+        # Algorithm-specific update
+        self._updater.step(self)
+        
+        # Standard bookkeeping
+        self._state.record_iteration(
+            iteration=self._convergence.iteration,
+            elapsed=perf_counter() - self._run_start_time,
+            evaluations=self._updater.problem.get_evaluation_count(),
+        )
+        
+        # Standard iteration emission
+        self._dispatcher.emit(engine=self, stage=Stage.ITERATION)
+
 
 
 __all__ = ["OptimizationEngine"]
