@@ -1,8 +1,10 @@
 """Typed event system for optimization lifecycle notifications."""
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Generic, List, Protocol
+from typing import Generic, List, Protocol, Dict, Literal
 from .types import ST, OT
+# Stage channels for event routing
+Channel = Literal["run", "iteration", "completion"]
 
 
 # Base event type (non-generic for listener typing simplicity)
@@ -61,11 +63,22 @@ class OptimizationEventListener(Protocol):
 
 
 class EventDispatcher(Generic[ST, OT]):
-    """Simple synchronous dispatcher for optimization events."""
+    """Simple synchronous dispatcher for optimization events with optional stage channels.
+
+    Listeners can subscribe globally (all events) or to a specific stage channel
+    like "run", "iteration", or "completion". Emitting to a channel notifies
+    both the listeners of that channel and any global listeners.
+    """
 
     def __init__(self) -> None:
         self._listeners: List[OptimizationEventListener] = []
+        self._channel_listeners: Dict[Channel, List[OptimizationEventListener]] = {
+            "run": [],
+            "iteration": [],
+            "completion": [],
+        }
 
+    # Global subscriptions
     def subscribe(self, listener: OptimizationEventListener) -> None:
         if listener not in self._listeners:
             self._listeners.append(listener)
@@ -77,12 +90,33 @@ class EventDispatcher(Generic[ST, OT]):
             pass
 
     def emit(self, event: OptimizationEventBase) -> None:
-        # Synchronous dispatch
-        for listener in self._listeners:
+        # Synchronous dispatch to global listeners
+        for listener in list(self._listeners):
+            listener.on_event(event)
+
+    # Channel-specific subscriptions
+    def subscribe_to(self, channel: Channel, listener: OptimizationEventListener) -> None:
+        listeners = self._channel_listeners[channel]
+        if listener not in listeners:
+            listeners.append(listener)
+
+    def unsubscribe_from(self, channel: Channel, listener: OptimizationEventListener) -> None:
+        listeners = self._channel_listeners[channel]
+        try:
+            listeners.remove(listener)
+        except ValueError:
+            pass
+
+    def emit_to(self, channel: Channel, event: OptimizationEventBase) -> None:
+        # Notify channel listeners then global listeners
+        for listener in list(self._channel_listeners[channel]):
+            listener.on_event(event)
+        for listener in list(self._listeners):
             listener.on_event(event)
 
 
 __all__ = [
+    "Channel",
     "RunStarted",
     "IterationStarted",
     "BestImproved",

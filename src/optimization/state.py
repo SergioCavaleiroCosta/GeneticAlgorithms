@@ -10,7 +10,6 @@ from dataclasses import dataclass, field
 from .types import ST, OT
 from .population import Population
 from .optimization_result import OptimizationResult
-from .events import EventDispatcher, RunStarted
 
 # Internal module: do not export symbols by default
 __all__: list[str] = []
@@ -38,8 +37,6 @@ class OptimizationState(Generic[ST, OT]):
 
     # Simple convergence history of best objective values
     _history: List[OT] = field(init=False, repr=False)
-    # Optional event dispatcher for emitting lifecycle events
-    _dispatcher: EventDispatcher[ST, OT] | None = None
 
     def __post_init__(self) -> None:
         # Initialize history with a precisely typed empty list
@@ -53,14 +50,7 @@ class OptimizationState(Generic[ST, OT]):
     def population(self, population: Population[ST, OT]) -> None:
         self._population = population
 
-    # Dispatcher plumbing (optional)
-    @property
-    def dispatcher(self) -> EventDispatcher[ST, OT] | None:
-        return self._dispatcher
-
-    @dispatcher.setter
-    def dispatcher(self, dispatcher: EventDispatcher[ST, OT] | None) -> None:
-        self._dispatcher = dispatcher
+    # Note: State is passive and does not own event emission.
 
     # Projections
     @property
@@ -87,16 +77,6 @@ class OptimizationState(Generic[ST, OT]):
         self._evaluations_at_start = evaluations
         # Optionally push initial best to history; we keep history of best after each iteration
         # not appending here maintains history aligned with iterations only.
-        # Emit RunStarted if a dispatcher is available
-        if self._dispatcher is not None:
-            self._dispatcher.emit(
-                RunStarted(
-                    elapsed=0.0,
-                    evaluations=evaluations,
-                    initial_solution=initial_solution,
-                    initial_objective=initial_objective,
-                )
-            )
 
     def record_iteration(self, iteration: int, elapsed: float, evaluations: int) -> None:
         # Record current best objective after each engine step

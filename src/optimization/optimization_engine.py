@@ -11,6 +11,8 @@ from .population import Population
 from .events import (
     EventDispatcher,
     IterationCompleted,
+    RunStarted,
+    RunCompleted,
 )
 from .state import OptimizationState
 
@@ -41,8 +43,6 @@ class OptimizationEngine(Generic[ST, OT]):
         # Wire dispatcher into strategies if supported
         self._convergence.set_dispatcher(self._dispatcher)
         self._updater.set_dispatcher(self._dispatcher)
-        # Note: state can emit events if the caller injects a dispatcher into it.
-        # The engine does not auto-wire the state's dispatcher to keep behavior opt-in.
         
     @property
     def population(self) -> Population[ST, OT]:
@@ -76,6 +76,16 @@ class OptimizationEngine(Generic[ST, OT]):
             initial_objective=current_objective,
             evaluations=problem.get_evaluation_count(),
         )
+        # Emit run-stage event
+        self._dispatcher.emit_to(
+            "run",
+            RunStarted(
+                elapsed=0.0,
+                evaluations=problem.get_evaluation_count(),
+                initial_solution=current_solution,
+                initial_objective=current_objective,
+            ),
+        )
 
         # Delegate continuation decision to the convergence checker
         while self._convergence.should_continue(self.population):
@@ -91,8 +101,9 @@ class OptimizationEngine(Generic[ST, OT]):
                 elapsed=perf_counter() - start,
                 evaluations=problem.get_evaluation_count(),
             )
-            # Emit iteration completed for listeners
-            self._dispatcher.emit(
+            # Emit iteration completed for listeners on iteration channel
+            self._dispatcher.emit_to(
+                "iteration",
                 IterationCompleted(
                     iteration=self._convergence.iteration,
                     elapsed=perf_counter() - start,
@@ -101,7 +112,7 @@ class OptimizationEngine(Generic[ST, OT]):
                     best_solution=self._state.best_solution,
                     best_objective=self._state.best_objective,
                     evaluations=problem.get_evaluation_count(),
-                )
+                ),
             )
 
         elapsed = perf_counter() - start
@@ -111,7 +122,19 @@ class OptimizationEngine(Generic[ST, OT]):
             success=True,
             termination_reason="stopped by criteria",
         )
-        # Notify convergence that the run completed so it can emit completion if desired
+        # Emit completion event then notify convergence
+        self._dispatcher.emit_to(
+            "completion",
+            RunCompleted(
+                iterations=self._convergence.iteration,
+                elapsed=elapsed,
+                best_solution=result.best_solution,
+                best_objective=result.best_objective,
+                evaluations=problem.get_evaluation_count(),
+                success=result.success,
+                termination_reason=result.termination_reason,
+            ),
+        )
         self._convergence.on_run_completed(
             best_solution=result.best_solution,
             best_objective=result.best_objective,
