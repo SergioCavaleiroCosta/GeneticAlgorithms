@@ -1,6 +1,6 @@
 """Generic optimization engine orchestrating initialization, stepping, and convergence."""
 from __future__ import annotations
-from typing import Generic, List
+from typing import Generic
 from time import perf_counter
 from .types import ST, OT
 from .optimization_result import OptimizationResult
@@ -11,7 +11,9 @@ from .population import Population
 from .events import (
     EventDispatcher,
     RunStarted,
+    IterationCompleted,
 )
+from .history_recorder import HistoryRecorder, InMemoryHistoryRecorder
 
 
 class OptimizationEngine(Generic[ST, OT]):
@@ -29,12 +31,14 @@ class OptimizationEngine(Generic[ST, OT]):
         updater: UpdateRule[ST, OT],
         convergence: ConvergenceChecker[ST, OT],
         dispatcher: EventDispatcher[ST, OT] | None = None,
+        history_recorder: HistoryRecorder[OT] | None = None,
     ) -> None:
         self._initializer = initializer
         self._updater = updater
         self._convergence = convergence
         self._dispatcher: EventDispatcher[ST, OT] = dispatcher or EventDispatcher()
         self._population: Population[ST, OT] = Population([], [])
+        self._recorder: HistoryRecorder[OT] = history_recorder or InMemoryHistoryRecorder()
         # Wire dispatcher into strategies if supported
         try:
             self._convergence.set_dispatcher(self._dispatcher)
@@ -44,6 +48,8 @@ class OptimizationEngine(Generic[ST, OT]):
             self._updater.set_dispatcher(self._dispatcher) 
         except AttributeError:
             pass
+        # Subscribe recorder to events
+        self._dispatcher.subscribe(self._recorder)
 
     @property
     def population(self) -> Population[ST, OT]:
@@ -67,7 +73,7 @@ class OptimizationEngine(Generic[ST, OT]):
         current_solution = self.population.current_solution
         current_objective = self.population.current_objective
         problem = self._updater.problem
-        history: List[OT] = [current_objective]
+        # History is recorded via event listeners (recorder); no local list here
 
         # Emit run started (moved from initialize to run)
         self._dispatcher.emit(
@@ -88,15 +94,24 @@ class OptimizationEngine(Generic[ST, OT]):
             
             # Update population with new current
             self.population.update_single(current_solution, current_objective)
-
-            # Track best
-            history.append(self.population.best_objective)
+            # Emit iteration completed for recorders and listeners
+            self._dispatcher.emit(
+                IterationCompleted(
+                    iteration=self._convergence.iteration,
+                    elapsed=perf_counter() - start,
+                    current_solution=current_solution,
+                    current_objective=current_objective,
+                    best_solution=self.population.best_solution,
+                    best_objective=self.population.best_objective,
+                    evaluations=problem.get_evaluation_count(),
+                )
+            )
 
         elapsed = perf_counter() - start
         result = OptimizationResult(
             best_solution=self.population.best_solution,
             best_objective=self.population.best_objective,
-            convergence_history=history,
+            convergence_history=self._recorder.get_history(),
             execution_time=elapsed,
             iterations=self._convergence.iteration,
             success=True,
