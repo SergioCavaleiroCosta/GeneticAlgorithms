@@ -76,8 +76,6 @@ class OptimizationState(Generic[ST, OT]):
         self._initial_objective = initial_objective
         self._evaluations_at_start = evaluations
 
-    # Iteration bookkeeping is handled by external strategies; no built-in recorder here.
-
     # Finalization
     def build_result(
         self,
