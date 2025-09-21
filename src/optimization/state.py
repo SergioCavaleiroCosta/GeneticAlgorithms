@@ -76,9 +76,7 @@ class OptimizationState(Generic[ST, OT]):
         self._initial_objective = initial_objective
         self._evaluations_at_start = evaluations
 
-    def record_iteration(self, iteration: int, elapsed: float, evaluations: int) -> None:
-        # Record current best objective after each engine step
-        self._history.append(self.best_objective)
+    # Iteration bookkeeping is handled by external strategies; no built-in recorder here.
 
     # Finalization
     def build_result(

@@ -109,13 +109,6 @@ class OptimizationEngine(Generic[ST, OT]):
         # Algorithm-specific update
         self._updater.step(self)
         
-        # Standard bookkeeping
-        self._state.record_iteration(
-            iteration=self._convergence.iteration,
-            elapsed=perf_counter() - self._run_start_time,
-            evaluations=self._updater.problem.get_evaluation_count(),
-        )
-        
         # Standard iteration emission
         self._dispatcher.emit(engine=self, stage=Stage.ITERATION)
 
