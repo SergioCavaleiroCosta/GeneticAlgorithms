@@ -25,8 +25,8 @@ class OptimizationEngine(Generic[ST, OT]):
 
     def __init__(
         self,
-    initializer: SolutionInitializer[ST, OT],
-            updater: UpdateRule[ST, OT],
+        initializer: SolutionInitializer[ST, OT],
+        updater: UpdateRule[ST, OT],
         convergence: ConvergenceChecker[ST, OT],
         dispatcher: EventDispatcher[ST, OT] | None = None,
     ) -> None:
@@ -50,21 +50,22 @@ class OptimizationEngine(Generic[ST, OT]):
         """Current population (always present; may be empty before initialize())."""
         return self._population
 
-    def initialize(self) -> tuple[ST, OT]:
+    def initialize(self) -> Population[ST, OT]:
         """Reset and prepare the initial state for a run.
 
-        Returns the initial solution and objective.
+        Returns the initial population.
         """
         self._convergence.reset()
         problem = self._updater.problem
-        initial_solution, initial_objective = self._initializer.initialize(problem)
-        self._population = Population([initial_solution], [initial_objective])
-        self._updater.seed(initial_solution, initial_objective)
-        return initial_solution, initial_objective
+        # Delegate population construction and seeding to initializer
+        self._population = self._initializer.initialize(problem, self._updater)
+        return self._population
 
     def run(self) -> OptimizationResult[ST, OT]:
         start = perf_counter()
-        current_solution, current_objective = self.initialize()
+        self.initialize()
+        current_solution = self.population.current_solution
+        current_objective = self.population.current_objective
         problem = self._updater.problem
         history: List[OT] = [current_objective]
 
