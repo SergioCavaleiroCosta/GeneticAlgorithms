@@ -75,8 +75,6 @@ class OptimizationState(Generic[ST, OT]):
         self._initial_solution = initial_solution
         self._initial_objective = initial_objective
         self._evaluations_at_start = evaluations
-        # Optionally push initial best to history; we keep history of best after each iteration
-        # not appending here maintains history aligned with iterations only.
 
     def record_iteration(self, iteration: int, elapsed: float, evaluations: int) -> None:
         # Record current best objective after each engine step
