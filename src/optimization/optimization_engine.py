@@ -115,17 +115,14 @@ class OptimizationEngine(Generic[ST, OT]):
             termination_reason="stopped by criteria",
         )
         # Notify convergence that the run completed so it can emit completion if desired
-        try:
-            self._convergence.on_run_completed(
-                best_solution=result.best_solution,
-                best_objective=result.best_objective,
-                elapsed=elapsed,
-                evaluations=problem.get_evaluation_count(),
-                success=result.success,
-                termination_reason=result.termination_reason,
-            )  # type: ignore[attr-defined]
-        except AttributeError:
-            pass
+        self._convergence.on_run_completed(
+            best_solution=result.best_solution,
+            best_objective=result.best_objective,
+            elapsed=elapsed,
+            evaluations=problem.get_evaluation_count(),
+            success=result.success,
+            termination_reason=result.termination_reason,
+        )
         return result
 
 
