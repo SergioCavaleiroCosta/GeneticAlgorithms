@@ -25,8 +25,8 @@ class OptimizationEngine(Generic[ST, OT]):
 
     def __init__(
         self,
-        initializer: SolutionInitializer[ST],
-        updater: UpdateRule[ST, OT],
+    initializer: SolutionInitializer[ST, OT],
+            updater: UpdateRule[ST, OT],
         convergence: ConvergenceChecker[ST, OT],
         dispatcher: EventDispatcher[ST, OT] | None = None,
     ) -> None:
@@ -57,8 +57,7 @@ class OptimizationEngine(Generic[ST, OT]):
         """
         self._convergence.reset()
         problem = self._updater.problem
-        initial_solution = self._initializer.initialize(problem)
-        initial_objective = problem.evaluate(initial_solution)
+        initial_solution, initial_objective = self._initializer.initialize(problem)
         self._population = Population([initial_solution], [initial_objective])
         self._updater.seed(initial_solution, initial_objective)
         return initial_solution, initial_objective

@@ -1,16 +1,16 @@
-"""Protocol for initializing a single solution."""
+"""Protocol for initializing a single solution and objective."""
 from typing import Protocol
 from abc import abstractmethod
-from .types import ST, OT_co
+from .types import ST, OT
 from .optimization_problem import OptimizationProblem
 
 
-class SolutionInitializer(Protocol[ST]):
-    """Create an initial feasible solution for a problem."""
+class SolutionInitializer(Protocol[ST, OT]):
+    """Create an initial feasible solution and its objective for a problem."""
 
     @abstractmethod
-    def initialize(self, problem: OptimizationProblem[ST, OT_co]) -> ST:
-        """Return an initial solution for the given problem."""
+    def initialize(self, problem: OptimizationProblem[ST, OT]) -> tuple[ST, OT]:
+        """Return an initial (solution, objective) for the given problem."""
         ...
 
 
