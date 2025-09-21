@@ -1,6 +1,6 @@
 """Generic optimization engine orchestrating initialization, stepping, and convergence."""
 from __future__ import annotations
-from typing import Generic, List
+from typing import Generic, List, Optional
 from time import perf_counter
 from .types import ST, OT
 from .optimization_result import OptimizationResult
@@ -34,6 +34,7 @@ class OptimizationEngine(Generic[ST, OT]):
         self._updater = updater
         self._convergence = convergence
         self._dispatcher: EventDispatcher[ST, OT] = dispatcher or EventDispatcher()
+        self._population: Optional[Population[ST, OT]] = None
         # Wire dispatcher into strategies if supported
         try:
             self._convergence.set_dispatcher(self._dispatcher)
@@ -44,22 +45,30 @@ class OptimizationEngine(Generic[ST, OT]):
         except AttributeError:
             pass
 
-    def initialize(self) -> tuple[Population[ST, OT], ST, OT]:
+    @property
+    def population(self) -> Population[ST, OT]:
+        """Current population (available after initialize()/run())."""
+        if self._population is None:
+            raise RuntimeError("Population is not initialized. Call initialize() or run() first.")
+        return self._population
+
+    def initialize(self) -> tuple[ST, OT]:
         """Reset and prepare the initial state for a run.
 
-        Returns the initial Population, solution, and objective.
+        Returns the initial solution and objective.
         """
         self._convergence.reset()
         problem = self._updater.problem
         initial_solution = self._initializer.initialize(problem)
         initial_objective = problem.evaluate(initial_solution)
         population: Population[ST, OT] = Population([initial_solution], [initial_objective])
+        self._population = population
         self._updater.seed(initial_solution, initial_objective)
-        return population, initial_solution, initial_objective
+        return initial_solution, initial_objective
 
     def run(self) -> OptimizationResult[ST, OT]:
         start = perf_counter()
-        population, current_solution, current_objective = self.initialize()
+        current_solution, current_objective = self.initialize()
         problem = self._updater.problem
         history: List[OT] = [current_objective]
 
@@ -74,22 +83,22 @@ class OptimizationEngine(Generic[ST, OT]):
         )
 
         # Delegate continuation decision to the convergence checker
-        while self._convergence.should_continue(population):
+        while self._convergence.should_continue(self.population):
             
             # Step
             new_solution, new_objective = self._updater.step(self._convergence)
             current_solution, current_objective = new_solution, new_objective
             
             # Update population with new current
-            population.update_single(current_solution, current_objective)
+            self.population.update_single(current_solution, current_objective)
 
             # Track best
-            history.append(population.best_objective)
+            history.append(self.population.best_objective)
 
         elapsed = perf_counter() - start
         result = OptimizationResult(
-            best_solution=population.best_solution,
-            best_objective=population.best_objective,
+            best_solution=self.population.best_solution,
+            best_objective=self.population.best_objective,
             convergence_history=history,
             execution_time=elapsed,
             iterations=self._convergence.iteration,
