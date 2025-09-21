@@ -10,10 +10,9 @@ from .convergence_checker import ConvergenceChecker
 from .population import Population
 from .events import (
     EventDispatcher,
-    RunStarted,
     IterationCompleted,
 )
-from .history_recorder import HistoryRecorder, InMemoryHistoryRecorder
+from .state import OptimizationState
 
 
 class OptimizationEngine(Generic[ST, OT]):
@@ -30,31 +29,28 @@ class OptimizationEngine(Generic[ST, OT]):
         initializer: SolutionInitializer[ST, OT],
         updater: UpdateRule[ST, OT],
         convergence: ConvergenceChecker[ST, OT],
+        state: OptimizationState[ST, OT],
         dispatcher: EventDispatcher[ST, OT] | None = None,
-        history_recorder: HistoryRecorder[OT] | None = None,
     ) -> None:
         self._initializer = initializer
         self._updater = updater
         self._convergence = convergence
         self._dispatcher: EventDispatcher[ST, OT] = dispatcher or EventDispatcher()
-        self._population: Population[ST, OT] = Population([], [])
-        self._recorder: HistoryRecorder[OT] = history_recorder or InMemoryHistoryRecorder()
+        # Live state is the single source of truth
+        self._state: OptimizationState[ST, OT] = state
         # Wire dispatcher into strategies if supported
+        self._convergence.set_dispatcher(self._dispatcher)
+        self._updater.set_dispatcher(self._dispatcher)
+        # Provide dispatcher to state so it can emit lifecycle events
         try:
-            self._convergence.set_dispatcher(self._dispatcher)
+            self._state.dispatcher = self._dispatcher  # type: ignore[attr-defined]
         except AttributeError:
             pass
-        try:
-            self._updater.set_dispatcher(self._dispatcher) 
-        except AttributeError:
-            pass
-        # Subscribe recorder to events
-        self._dispatcher.subscribe(self._recorder)
-
+        
     @property
     def population(self) -> Population[ST, OT]:
         """Current population (always present; may be empty before initialize())."""
-        return self._population
+        return self._state.population
 
     def initialize(self) -> Population[ST, OT]:
         """Reset and prepare the initial state for a run.
@@ -63,60 +59,60 @@ class OptimizationEngine(Generic[ST, OT]):
         """
         self._convergence.reset()
         problem = self._updater.problem
+        
         # Delegate population construction and seeding to initializer
-        self._population = self._initializer.initialize(problem, self._updater)
-        return self._population
+        population = self._initializer.initialize(problem, self._updater)
+        self._state.population = population
+        
+        return population
 
     def run(self) -> OptimizationResult[ST, OT]:
         start = perf_counter()
         self.initialize()
-        current_solution = self.population.current_solution
-        current_objective = self.population.current_objective
+        current_solution = self._state.current_solution
+        current_objective = self._state.current_objective
         problem = self._updater.problem
-        # History is recorded via event listeners (recorder); no local list here
 
-        # Emit run started (moved from initialize to run)
-        self._dispatcher.emit(
-            RunStarted(
-                elapsed=0.0,
-                evaluations=problem.get_evaluation_count(),
-                initial_solution=current_solution,
-                initial_objective=current_objective,
-            )
+        # Inform state to begin the run (after initialization, before events)
+        self._state.begin_run(
+            initial_solution=current_solution,
+            initial_objective=current_objective,
+            evaluations=problem.get_evaluation_count(),
         )
 
         # Delegate continuation decision to the convergence checker
         while self._convergence.should_continue(self.population):
-            
             # Step
             new_solution, new_objective = self._updater.step(self._convergence)
             current_solution, current_objective = new_solution, new_objective
-            
+
             # Update population with new current
             self.population.update_single(current_solution, current_objective)
-            # Emit iteration completed for recorders and listeners
+            # Let state record iteration metadata
+            self._state.record_iteration(
+                iteration=self._convergence.iteration,
+                elapsed=perf_counter() - start,
+                evaluations=problem.get_evaluation_count(),
+            )
+            # Emit iteration completed for listeners
             self._dispatcher.emit(
                 IterationCompleted(
                     iteration=self._convergence.iteration,
                     elapsed=perf_counter() - start,
                     current_solution=current_solution,
                     current_objective=current_objective,
-                    best_solution=self.population.best_solution,
-                    best_objective=self.population.best_objective,
+                    best_solution=self._state.best_solution,
+                    best_objective=self._state.best_objective,
                     evaluations=problem.get_evaluation_count(),
                 )
             )
 
         elapsed = perf_counter() - start
-        result = OptimizationResult(
-            best_solution=self.population.best_solution,
-            best_objective=self.population.best_objective,
-            convergence_history=self._recorder.get_history(),
+        result = self._state.build_result(
             execution_time=elapsed,
             iterations=self._convergence.iteration,
             success=True,
             termination_reason="stopped by criteria",
-            additional_info={"evaluations": problem.get_evaluation_count()},
         )
         # Notify convergence that the run completed so it can emit completion if desired
         try:
