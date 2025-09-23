@@ -3,13 +3,20 @@ from __future__ import annotations
 
 from typing import Optional, Sequence
 import random
-import numpy as np
 
 from optimization.update_rule import UpdateRule
 from optimization.events import EventDispatcher
 from optimization.optimization_problem import OptimizationProblem
 from optimization.population import Population
 from optimization.types import NDArrayFloat
+from genetic_algorithms.ops.selection import SelectionStrategy
+from genetic_algorithms.ops.selection.tournament import TournamentSelection
+from genetic_algorithms.ops.crossover import CrossoverStrategy
+from genetic_algorithms.ops.crossover.arithmetic import ArithmeticCrossover
+from genetic_algorithms.ops.mutation import MutationStrategy
+from genetic_algorithms.ops.elitism import ElitismStrategy
+from genetic_algorithms.ops.elitism.topk import TopKElitism
+from genetic_algorithms.ops.mutation.gaussian import GaussianMutation
 
 
 class RealVectorGA(UpdateRule[NDArrayFloat, float]):
@@ -27,39 +34,25 @@ class RealVectorGA(UpdateRule[NDArrayFloat, float]):
         self,
         problem: OptimizationProblem[NDArrayFloat, float],
         *,
-        population_size: int,
-        tournament_size: int = 2,
-        crossover_prob: float = 0.9,
-        alpha: float = 0.5,  # crossover mixing parameter
-        mutation_prob: float = 0.1,
-        mutation_sigma: float = 0.1,
-        elitism: int = 1,
         rng: Optional[random.Random] = None,
+        # New: pluggable strategies (defaults mirror previous behavior)
+        selection: Optional[SelectionStrategy[float]] = None,
+        crossover: Optional[CrossoverStrategy[NDArrayFloat]] = None,
+        mutation: Optional[MutationStrategy[NDArrayFloat]] = None,
+        elitism: Optional[ElitismStrategy[NDArrayFloat, float]] = None,
     ) -> None:
-        if population_size <= 0:
-            raise ValueError("population_size must be > 0")
-        if tournament_size <= 0:
-            raise ValueError("tournament_size must be > 0")
-        if not (0.0 <= crossover_prob <= 1.0):
-            raise ValueError("crossover_prob must be in [0, 1]")
-        if not (0.0 <= mutation_prob <= 1.0):
-            raise ValueError("mutation_prob must be in [0, 1]")
-        if elitism < 0:
-            raise ValueError("elitism must be >= 0")
-
         self._problem = problem
-        self._population_size = population_size
-        self._k = tournament_size
-        self._pc = crossover_prob
-        self._alpha = alpha
-        self._pm = mutation_prob
-        self._sigma = mutation_sigma
-        self._elitism = elitism
         self._rng = rng or random.Random()
         self._dispatcher: Optional[EventDispatcher[NDArrayFloat, float]] = None
 
         # Cache bounds if provided for faster clamp
         self._bounds = problem.bounds
+
+        # Strategies (defaults)
+        self._selection: SelectionStrategy[float] = selection or TournamentSelection(rng=self._rng)
+        self._crossover: CrossoverStrategy[NDArrayFloat] = crossover or ArithmeticCrossover()
+        self._mutation: MutationStrategy[NDArrayFloat] = mutation or GaussianMutation(bounds=self._bounds)
+        self._elitism: ElitismStrategy[NDArrayFloat, float] = elitism or TopKElitism(k=2)
 
     # UpdateRule interface
     def set_dispatcher(self, dispatcher: EventDispatcher[NDArrayFloat, float]) -> None:
@@ -73,41 +66,15 @@ class RealVectorGA(UpdateRule[NDArrayFloat, float]):
         # GA does not require special seeding beyond having an initial population
         pass
 
-    # Core GA operators
-    def _tournament(self, objectives: Sequence[float]) -> int:
-        # Return index of the best individual from k sampled indices
-        n = len(objectives)
-        best_i = None
-        best_val = None
-        for _ in range(self._k):
-            i = self._rng.randrange(n)
-            val = objectives[i]
-            if best_val is None or val < best_val:
-                best_i = i
-                best_val = val
-        assert best_i is not None
-        return best_i
+    # Core GA operators via strategies
+    def _select_parent(self, objectives: Sequence[float]) -> int:
+        return self._selection.select(objectives)
 
-    def _crossover(self, a: NDArrayFloat, b: NDArrayFloat) -> tuple[NDArrayFloat, NDArrayFloat]:
-        if self._rng.random() > self._pc:
-            return a.copy(), b.copy()
-        # BLX-alpha: sample within extended range; simpler arithmetic mix here
-        w = self._alpha
-        c1 = w * a + (1.0 - w) * b
-        c2 = w * b + (1.0 - w) * a
-        return c1.astype(np.float64, copy=False), c2.astype(np.float64, copy=False)
+    def _do_crossover(self, a: NDArrayFloat, b: NDArrayFloat) -> tuple[NDArrayFloat, NDArrayFloat]:
+        return self._crossover.crossover(a, b)
 
     def _mutate(self, x: NDArrayFloat) -> NDArrayFloat:
-        if self._rng.random() <= self._pm:
-            noise = np.random.normal(loc=0.0, scale=self._sigma, size=x.shape).astype(np.float64)
-            x = (x + noise).astype(np.float64)
-            # Clamp if bounds are provided
-            if self._bounds is not None:
-                for i, (lo, hi) in enumerate(self._bounds):
-                    lo = float(min(lo, hi))
-                    hi = float(max(lo, hi))
-                    x[i] = np.clip(x[i], lo, hi)
-        return x
+        return self._mutation.mutate(x)
 
     def step(self, engine) -> None:  # type: ignore[override]
         population: Population[NDArrayFloat, float] = engine.population
@@ -115,27 +82,25 @@ class RealVectorGA(UpdateRule[NDArrayFloat, float]):
         if n == 0:
             raise RuntimeError("Population is empty; cannot step GA")
 
-        # Elitism: keep top-k from current population
-        k = min(self._elitism, n) if self._elitism > 0 else 0
-        indices = list(range(n))
-        indices.sort(key=lambda i: population.objectives[i])
-        elites_idx = indices[:k]
+        # Elitism via strategy: indices of elites to carry over
+        elites_idx = self._elitism.select_indices(population)
         new_candidates: list[NDArrayFloat] = [population.candidates[i].copy() for i in elites_idx]
         new_objectives: list[float] = [population.objectives[i] for i in elites_idx]
 
         # Fill the rest with offspring
-        while len(new_candidates) < self._population_size:
-            i1 = self._tournament(population.objectives)
-            i2 = self._tournament(population.objectives)
+        target_size = n  # keep population size stable by default
+        while len(new_candidates) < target_size:
+            i1 = self._select_parent(population.objectives)
+            i2 = self._select_parent(population.objectives)
             p1 = population.candidates[i1]
             p2 = population.candidates[i2]
-            c1, c2 = self._crossover(p1, p2)
+            c1, c2 = self._do_crossover(p1, p2)
             c1 = self._mutate(c1)
             c2 = self._mutate(c2)
 
             # Evaluate children and append (respect population size)
             for child in (c1, c2):
-                if len(new_candidates) >= self._population_size:
+                if len(new_candidates) >= target_size:
                     break
                 obj = self._problem.evaluate(child)
                 new_candidates.append(child)

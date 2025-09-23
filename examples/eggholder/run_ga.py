@@ -15,7 +15,7 @@ from optimization.convergence_checker import ConvergenceChecker, MaxIterationsSt
 from optimization.events import EventDispatcher, Stage
 from optimization.types import NDArrayFloat
 
-from genetic_algorithms import RealVectorInitializer, RealVectorGA
+from genetic_algorithms import RealVectorInitializer, RealVectorGA, TournamentSelection, ArithmeticCrossover, UniformMutation, TopKElitism
 from examples.eggholder.problem import EggholderProblem
 from examples.eggholder.plotting import ContourPopulationPlotter, eggholder_function
 
@@ -25,15 +25,18 @@ def main() -> None:
 
     # Components
     initializer = RealVectorInitializer(population_size=50)
+    # Define GA operators explicitly (probabilities live in strategies)
+    selection = TournamentSelection(k=3)
+    crossover = ArithmeticCrossover(alpha=0.5, prob=0.9)
+    mutation = UniformMutation(scale=2.0, prob=0.2, bounds=problem.bounds)
+    elitism = TopKElitism[NDArrayFloat, float](k=2)
+
     updater = RealVectorGA(
         problem,
-        population_size=50,
-        tournament_size=3,
-        crossover_prob=0.9,
-        alpha=0.5,
-        mutation_prob=0.2,
-        mutation_sigma=2.0,
-        elitism=2,
+        selection=selection,
+        crossover=crossover,
+        mutation=mutation,
+        elitism=elitism,
     )
 
     convergence = ConvergenceChecker[NDArrayFloat, float](
