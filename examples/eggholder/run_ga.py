@@ -12,11 +12,12 @@ if str(SRC) not in sys.path:
 from optimization.optimization_engine import OptimizationEngine
 from optimization.state import OptimizationState
 from optimization.convergence_checker import ConvergenceChecker, MaxIterationsStop, MaxEvaluationsStop
-from optimization.events import EventDispatcher
+from optimization.events import EventDispatcher, Stage
 from optimization.types import NDArrayFloat
 
 from genetic_algorithms import RealVectorInitializer, RealVectorGA
 from examples.eggholder.problem import EggholderProblem
+from examples.eggholder.plotting import ContourPopulationPlotter, eggholder_function
 
 
 def main() -> None:
@@ -42,6 +43,10 @@ def main() -> None:
 
     state = OptimizationState[NDArrayFloat, float]()
     dispatcher = EventDispatcher[NDArrayFloat, float]()
+    # Add real-time plotting strategy
+    plotter = ContourPopulationPlotter(eggholder_function, problem.bounds or [(-512.0, 512.0), (-512.0, 512.0)])
+    dispatcher.add_strategy(Stage.RUN_START, plotter)
+    dispatcher.add_strategy(Stage.ITERATION, plotter)
 
     engine = OptimizationEngine[NDArrayFloat, float](
         initializer, updater, convergence, state, dispatcher
