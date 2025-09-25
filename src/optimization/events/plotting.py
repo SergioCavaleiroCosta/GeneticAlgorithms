@@ -62,7 +62,12 @@ class ContourPopulationPlotter2D(OptimizationStageStrategy[ST, OT]):
         fixed_values: Optional[Mapping[str, float]] = None,
         midpoint_fallback: bool = True,
     ) -> None:
-        self._scatter_kwargs = dict(scatter_kwargs or {"c": "yellow", "edgecolors": "k", "s": 30, "alpha": 0.8})
+        self._scatter_kwargs = dict(
+            scatter_kwargs or {"c": "yellow", "edgecolors": "k", "s": 30, "alpha": 0.8}
+        )
+        # Ensure scatter always draws above filled contours even after contour redraws
+        if "zorder" not in self._scatter_kwargs:
+            self._scatter_kwargs["zorder"] = 10
         self._update_every = max(1, update_every)
         self._grid_size = max(10, grid_size)
         self._contour_levels = max(2, contour_levels)
@@ -223,8 +228,17 @@ class ContourPopulationPlotter2D(OptimizationStageStrategy[ST, OT]):
         proj = pts[:, [i, j]]
         if self._scatter is None:
             self._scatter = self._ax.scatter(proj[:, 0], proj[:, 1], **self._scatter_kwargs)
+            # Reassert z-order explicitly (some backends may ignore initial kwargs)
+            try:
+                self._scatter.set_zorder(self._scatter_kwargs.get("zorder", 10))
+            except Exception:
+                pass
         else:
             self._scatter.set_offsets(proj)
+            try:
+                self._scatter.set_zorder(self._scatter_kwargs.get("zorder", 10))
+            except Exception:
+                pass
         canvas = self._fig.canvas
         canvas.draw()
         canvas.flush_events()
@@ -263,6 +277,15 @@ class ContourPopulationPlotter2D(OptimizationStageStrategy[ST, OT]):
                                 for c in self._contour.collections:
                                     c.remove()
                                 self._contour = self._ax.contourf(X, Y, Z, levels=self._contour_levels, cmap="viridis")
+                                # After replotting contour, push scatter (if any) back to front
+                                if self._scatter is not None:
+                                    try:
+                                        base_z = 1
+                                        if self._contour is not None and self._contour.collections:
+                                            base_z = max(col.get_zorder() for col in self._contour.collections)
+                                        self._scatter.set_zorder(base_z + 1)
+                                    except Exception:
+                                        pass
                             except Exception:
                                 pass
                 except Exception:
