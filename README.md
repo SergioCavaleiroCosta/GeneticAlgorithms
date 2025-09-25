@@ -119,3 +119,29 @@ Notes:
 - Iteration counting and loop control are encapsulated in your `ConvergenceChecker`.
 - Evaluation counting is owned by the problem (queried via `problem.get_evaluation_count()`).
 
+## Included Examples
+
+### Eggholder (2D)
+Located in `examples/eggholder/`. Demonstrates:
+- External parameter specification (`ContinuousParameter`) with real-domain normalization
+- Real-time contour plotting with dynamic best-solution driven slicing (only 2D so direct)
+- Advanced arithmetic crossover (random subset multi-allele blending)
+
+Run:
+```bash
+uv run python examples/eggholder/run_ga.py
+```
+
+### Sphere (10D)
+Located in `examples/sphere/`. Demonstrates:
+- High-dimensional continuous optimization with 10 parameters in [-5.12, 5.12]
+- 2D contour projection of the first two dimensions while fixing others to the current best solution
+- Same GA pipeline components reused (selection, crossover, mutation, elitism)
+
+Run:
+```bash
+uv run python examples/sphere/run_ga.py
+```
+
+Both examples denormalize the final best candidate for reporting and showcase the stage-based event system for live visualization.
+
