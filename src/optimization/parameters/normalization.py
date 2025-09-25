@@ -2,10 +2,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from .protocols import NormalizationStrategy
 
+
 __all__ = ["LinearNormalization"]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class LinearNormalization(NormalizationStrategy):  # structural + explicit for clarity
     """Affine mapping between a real interval [lo, hi] and normalized [0,1].
 
@@ -14,11 +15,10 @@ class LinearNormalization(NormalizationStrategy):  # structural + explicit for c
     _lo: float
     _hi: float
 
-    def __post_init__(self) -> None:
-        orig_lo, orig_hi = float(self._lo), float(self._hi)
-        lo, hi = (orig_lo, orig_hi) if orig_lo <= orig_hi else (orig_hi, orig_lo)
-        object.__setattr__(self, "_lo", lo)
-        object.__setattr__(self, "_hi", hi)
+    def __init__(self, lo: float, hi: float) -> None:
+        # Normalize ordering to ensure _lo <= _hi
+        object.__setattr__(self, "_lo", min(lo, hi))
+        object.__setattr__(self, "_hi", max(lo, hi))
 
     @property
     def span(self) -> float:
@@ -27,10 +27,10 @@ class LinearNormalization(NormalizationStrategy):  # structural + explicit for c
     def to_norm(self, real: float) -> float:
         if self.span == 0.0:
             return 0.0
-        return (float(real) - self._lo) / self.span
+        return (real - self._lo) / self.span
 
     def to_real(self, norm: float) -> float:
-        return self._lo if self.span == 0.0 else self._lo + float(norm) * self.span
+        return self._lo if self.span == 0.0 else self._lo + norm * self.span
 
     @property
     def lo(self) -> float:
