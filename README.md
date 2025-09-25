@@ -158,6 +158,17 @@ uv run python examples/rastrigin/run_ga.py
 
 All examples share the same core engine and operator abstractions, highlighting reuse.
 
+### Beale (2D)
+Located in `examples/beale/`. Demonstrates:
+- Classic 2D multimodal benchmark with sharp curved valley
+- Direct 2D contour (no projection needed) using the generic plotter
+- Rapid convergence to (3, 0.5)
+
+Run:
+```bash
+uv run python examples/beale/run_ga.py
+```
+
 ### Rosenbrock (10D)
 Located in `examples/rosenbrock/`. Demonstrates:
 - Narrow curved valley (ill-conditioned) challenging for naive search
