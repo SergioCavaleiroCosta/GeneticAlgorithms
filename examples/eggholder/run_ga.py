@@ -27,16 +27,16 @@ def main() -> None:
     # Define parameter specifications externally and store in state
     parameters = [
         ContinuousParameter(
-            _name="x",
-            _normalizer=LinearNormalization(-512.0, 512.0),
-            _description="Eggholder x dimension",
-            _unit="units",
+            name="x",
+            normalizer=LinearNormalization(-512.0, 512.0),
+            description="Eggholder x dimension",
+            unit="units",
         ),
         ContinuousParameter(
-            _name="y",
-            _normalizer=LinearNormalization(-512.0, 512.0),
-            _description="Eggholder y dimension",
-            _unit="units",
+            name="y",
+            normalizer=LinearNormalization(-512.0, 512.0),
+            description="Eggholder y dimension",
+            unit="units",
         ),
     ]
 
