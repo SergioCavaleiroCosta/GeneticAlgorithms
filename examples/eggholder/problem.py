@@ -1,10 +1,23 @@
 from __future__ import annotations
 
-from typing import Optional, List, Tuple
+from typing import Optional, Sequence
 import numpy as np
 
 from optimization.optimization_problem import BaseOptimizationProblem
 from optimization.types import NDArrayFloat
+from optimization.parameters import ContinuousParameter, LinearNormalization, ParameterSpec
+
+
+def eggholder_formula(x: np.ndarray | float, y: np.ndarray | float):
+    """Vectorized Eggholder formula.
+
+    Accepts scalars or NumPy arrays for x and y; returns matching shape.
+    """
+    x_arr = np.asarray(x, dtype=np.float64)
+    y_arr = np.asarray(y, dtype=np.float64)
+    term1 = -(y_arr + 47.0) * np.sin(np.sqrt(np.abs(x_arr / 2.0 + (y_arr + 47.0))))
+    term2 = -x_arr * np.sin(np.sqrt(np.abs(x_arr - (y_arr + 47.0))))
+    return term1 + term2
 
 
 class EggholderProblem(BaseOptimizationProblem[NDArrayFloat, float]):
@@ -17,30 +30,64 @@ class EggholderProblem(BaseOptimizationProblem[NDArrayFloat, float]):
 
     def __init__(self) -> None:
         super().__init__()
-        self._bounds: List[Tuple[float, float]] = [(-512.0, 512.0), (-512.0, 512.0)]
-
-    @property
-    def bounds(self) -> Optional[List[Tuple[float, float]]]:
-        return self._bounds
+        # Parameter specifications (real domain mapped to normalized [0,1])
+        self._parameters: Sequence[ParameterSpec] = [
+            ContinuousParameter(
+                _name="x",
+                _normalizer=LinearNormalization(-512.0, 512.0),
+                _description="Eggholder x dimension",
+                _unit="units",
+            ),
+            ContinuousParameter(
+                _name="y",
+                _normalizer=LinearNormalization(-512.0, 512.0),
+                _description="Eggholder y dimension",
+                _unit="units",
+            ),
+        ]
 
     @property
     def dimension(self) -> Optional[int]:
         return 2
 
+    @property
+    def parameters(self) -> Sequence[ParameterSpec]:  # type: ignore[override]
+        """Return parameter specifications (real bounds + normalization).
+
+        The optimization loop may keep candidate vectors in normalized [0,1]^d
+        space; these specs allow conversion to real domain for evaluation.
+        """
+        return self._parameters
+
     def evaluate(self, solution: NDArrayFloat) -> float:
         # Ensure shape (2,)
         x = float(solution[0])
         y = float(solution[1])
-        # Standard eggholder formula
-        term1 = -(y + 47.0) * np.sin(np.sqrt(abs(x/2.0 + (y + 47.0))))
-        term2 = -x * np.sin(np.sqrt(abs(x - (y + 47.0))))
-        value = term1 + term2
+    value = eggholder_formula(x, y)
         self.increment_evaluation_count()
         return float(value)
 
     def is_feasible(self, solution: NDArrayFloat) -> bool:
-        # Feasible if within bounds
-        (x_min, x_max), (y_min, y_max) = self._bounds
-        x = float(solution[0])
-        y = float(solution[1])
-        return (x_min <= x <= x_max) and (y_min <= y <= y_max)
+        """Check feasibility using parameter normalizers' real-domain intervals.
+
+        Falls back to True for any parameter whose normalizer does not expose
+        ``lo``/``hi`` attributes (keeps behavior permissive for custom strategies).
+        """
+        params = self._parameters
+        if len(solution) != len(params):  # dimension mismatch -> infeasible
+            return False
+        for i, p in enumerate(params):
+            norm = p.normalizer
+            lo = getattr(norm, "lo", None)
+            hi = getattr(norm, "hi", None)
+            if lo is None or hi is None:
+                # Cannot derive bounds; assume feasible for this dimension
+                continue
+            v = float(solution[i])
+            lo_f = float(lo)
+            hi_f = float(hi)
+            if lo_f > hi_f:
+                lo_f, hi_f = hi_f, lo_f
+            if not (lo_f <= v <= hi_f):
+                return False
+        return True

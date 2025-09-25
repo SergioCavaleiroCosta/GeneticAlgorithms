@@ -4,7 +4,7 @@ Contains:
 - OptimizationProblem: typing Protocol describing the required API
 - BaseOptimizationProblem: reusable ABC that implements evaluation counting
 """
-from typing import Protocol, Optional, List, Tuple, Generic
+from typing import Protocol, Optional, Generic
 from .types import ST, ST_contra, OT_co
 from abc import abstractmethod, ABC
 
@@ -39,11 +39,6 @@ class OptimizationProblem(Protocol[ST_contra, OT_co]):
         """
         ...
     
-    @property
-    def bounds(self) -> Optional[List[Tuple[float, float]]]:
-        """Bounds for decision variables (min, max) per variable, if applicable."""
-        return None
-
     @property
     def dimension(self) -> Optional[int]:
         """Dimension of the solution space, if applicable."""
@@ -81,10 +76,6 @@ class BaseOptimizationProblem(ABC, Generic[ST, OT_co]):
         objective is computed.
         """
         self._evaluation_count += 1
-
-    @property
-    def bounds(self) -> Optional[List[Tuple[float, float]]]:
-        return None
 
     @property
     def dimension(self) -> Optional[int]:

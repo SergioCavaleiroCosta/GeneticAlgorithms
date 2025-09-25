@@ -27,7 +27,7 @@ class RealVectorGA(UpdateRule[NDArrayFloat, float]):
       - BLX-Alpha style arithmetic crossover (alpha in [0, 1])
       - Gaussian mutation with per-dimension sigma
       - Elitism (copy top-k)
-      - Optional bounds clamping using problem.bounds
+    - Assumes normalized [0,1]^d if problem exposes parameters
     """
 
     def __init__(
@@ -45,13 +45,11 @@ class RealVectorGA(UpdateRule[NDArrayFloat, float]):
         self._rng = rng or random.Random()
         self._dispatcher: Optional[EventDispatcher[NDArrayFloat, float]] = None
 
-        # Cache bounds if provided for faster clamp
-        self._bounds = problem.bounds
-
         # Strategies (defaults)
         self._selection: SelectionStrategy[float] = selection or TournamentSelection(rng=self._rng)
         self._crossover: CrossoverStrategy[NDArrayFloat] = crossover or ArithmeticCrossover()
-        self._mutation: MutationStrategy[NDArrayFloat] = mutation or GaussianMutation(bounds=self._bounds)
+        # If operating in normalized domain, mutation strategies should not rely on real bounds
+        self._mutation: MutationStrategy[NDArrayFloat] = mutation or GaussianMutation()
         self._elitism: ElitismStrategy[NDArrayFloat, float] = elitism or TopKElitism(k=2)
 
     # UpdateRule interface
@@ -82,6 +80,20 @@ class RealVectorGA(UpdateRule[NDArrayFloat, float]):
         if n == 0:
             raise RuntimeError("Population is empty; cannot step GA")
 
+        params = getattr(self._problem, "parameters", None)
+        def evaluate_candidate(vec: NDArrayFloat) -> float:
+            """Evaluate a candidate that may be normalized.
+
+            If parameters are defined, treat vec as normalized and map to real
+            domain for objective evaluation.
+            """
+            if params is not None and len(params) == vec.shape[0]:
+                # Denormalize
+                import numpy as np
+                real = np.array([p.normalizer.to_real(vec[i]) for i, p in enumerate(params)], dtype=np.float64)
+                return float(self._problem.evaluate(real))
+            return float(self._problem.evaluate(vec))
+
         # Elitism via strategy: indices of elites to carry over
         elites_idx = self._elitism.select_indices(population)
         new_candidates: list[NDArrayFloat] = [population.candidates[i].copy() for i in elites_idx]
@@ -97,14 +109,19 @@ class RealVectorGA(UpdateRule[NDArrayFloat, float]):
             c1, c2 = self._do_crossover(p1, p2)
             c1 = self._mutate(c1)
             c2 = self._mutate(c2)
+            # If normalized domain, clamp to [0,1] to keep validity
+            if params is not None:
+                import numpy as np
+                np.clip(c1, 0.0, 1.0, out=c1)
+                np.clip(c2, 0.0, 1.0, out=c2)
 
             # Evaluate children and append (respect population size)
             for child in (c1, c2):
                 if len(new_candidates) >= target_size:
                     break
-                obj = self._problem.evaluate(child)
+                obj = evaluate_candidate(child)
                 new_candidates.append(child)
-                new_objectives.append(float(obj))
+                new_objectives.append(obj)
 
         engine.population.replace_all(new_candidates, new_objectives)
 

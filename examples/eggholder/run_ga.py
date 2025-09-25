@@ -28,7 +28,8 @@ def main() -> None:
     # Define GA operators explicitly (probabilities live in strategies)
     selection = TournamentSelection(k=3)
     crossover = ArithmeticCrossover(alpha=0.5, prob=0.9)
-    mutation = UniformMutation(scale=2.0, prob=0.2, bounds=problem.bounds)
+    # Internal representation is normalized [0,1]^d
+    mutation = UniformMutation(scale=0.2, prob=0.2, normalized=True)
     elitism = TopKElitism[NDArrayFloat, float](k=2)
 
     updater = RealVectorGA(
@@ -41,13 +42,25 @@ def main() -> None:
 
     convergence = ConvergenceChecker[NDArrayFloat, float](
         strategies=[MaxEvaluationsStop(20_000)],
-        iteration_strategy=MaxIterationsStop(500),
+        iteration_strategy=MaxIterationsStop(50),
     )
 
     state = OptimizationState[NDArrayFloat, float]()
     dispatcher = EventDispatcher[NDArrayFloat, float]()
     # Add real-time plotting strategy
-    plotter = ContourPopulationPlotter(eggholder_function, problem.bounds or [(-512.0, 512.0), (-512.0, 512.0)])
+    # Derive real plotting bounds directly from parameter normalizers (lo/hi) with normalized fallback
+    params = getattr(problem, "parameters", [])
+    from typing import List, Tuple
+    bounds: List[Tuple[float, float]] = []
+    for p in params[:2]:  # only need first two for 2D plot
+        lo = getattr(p.normalizer, "lo", 0.0)  # default to normalized domain if absent
+        hi = getattr(p.normalizer, "hi", 1.0)
+        # Ensure ordering
+        lo_f, hi_f = (lo, hi) if lo <= hi else (hi, lo)
+        bounds.append((lo_f, hi_f))
+    while len(bounds) < 2:
+        bounds.append((0.0, 1.0))
+    plotter = ContourPopulationPlotter(eggholder_function, bounds)  # type: ignore[arg-type]
     dispatcher.add_strategy(Stage.RUN_START, plotter)
     dispatcher.add_strategy(Stage.ITERATION, plotter)
 
@@ -56,7 +69,16 @@ def main() -> None:
     )
 
     result = engine.run()
-    print("Best solution:", result.best_solution)
+    # Denormalize best solution for reporting
+    params = getattr(problem, "parameters", None)
+    best_real = None
+    if params is not None:
+        import numpy as np  # local import to avoid unused if not used
+        norm = result.best_solution
+        best_real = np.array([p.normalizer.to_real(norm[i]) for i, p in enumerate(params)], dtype=float)
+    print("Best solution (normalized):", result.best_solution)
+    if best_real is not None:
+        print("Best solution (real):", best_real)
     print("Best objective:", result.best_objective)
     print("Iterations:", result.iterations)
     print("Execution time (s):", result.execution_time)

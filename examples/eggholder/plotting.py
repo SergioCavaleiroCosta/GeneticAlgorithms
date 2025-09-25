@@ -101,6 +101,13 @@ class ContourPopulationPlotter(OptimizationStageStrategy[NDArrayFloat, float]):
             # Draw initial population if present
             if engine.population.size > 0:
                 pts = np.asarray(engine.population.candidates, dtype=np.float64)
+                # If problem provides parameters, assume pts are normalized and denormalize
+                params = getattr(engine.problem, "parameters", None)
+                if params is not None and len(params) == pts.shape[1]:
+                    real_pts = pts.copy()
+                    for j, p in enumerate(params):
+                        real_pts[:, j] = [p.normalizer.to_real(v) for v in pts[:, j]]
+                    pts = real_pts
                 self._update_scatter(pts)
         elif stage == Stage.ITERATION:
             if self._fig is None:
@@ -109,6 +116,12 @@ class ContourPopulationPlotter(OptimizationStageStrategy[NDArrayFloat, float]):
             if (self._tick % self._update_every) != 0:
                 return
             pts = np.asarray(engine.population.candidates, dtype=np.float64)
+            params = getattr(engine.problem, "parameters", None)
+            if params is not None and len(params) == pts.shape[1]:
+                real_pts = pts.copy()
+                for j, p in enumerate(params):
+                    real_pts[:, j] = [p.normalizer.to_real(v) for v in pts[:, j]]
+                pts = real_pts
             if pts.size == 0:
                 return
             self._update_scatter(pts)

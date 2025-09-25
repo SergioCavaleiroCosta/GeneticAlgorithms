@@ -5,10 +5,11 @@ It is not part of the public API surface; symbols are intentionally not exported
 via ``__all__``. Downstream users should not import from this module directly.
 """
 from __future__ import annotations
-from typing import Generic, List, cast
+from typing import Generic, List, Sequence, Dict, cast
 from dataclasses import dataclass, field
 from .types import ST, OT
 from .population import Population
+from .parameters.protocols import ParameterSpec
 from .optimization_result import OptimizationResult
 
 # Internal module: do not export symbols by default
@@ -37,6 +38,10 @@ class OptimizationState(Generic[ST, OT]):
 
     # Simple convergence history of best objective values
     _history: List[OT] = field(init=False, repr=False)
+    
+    # Parameter specifications (normalized domain metadata)
+    _parameters: Sequence[ParameterSpec] = field(default_factory=lambda: cast(Sequence[ParameterSpec], []))
+    _param_index: Dict[str, int] | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         # Initialize history with a precisely typed empty list
@@ -98,5 +103,26 @@ class OptimizationState(Generic[ST, OT]):
                 "initial_solution": self._initial_solution,
                 "initial_objective": self._initial_objective,
                 "evaluations_at_start": self._evaluations_at_start,
+                "parameter_names": [p.name for p in self._parameters] if self._parameters else None,
             },
         )
+
+    # Parameter metadata accessors
+    @property
+    def parameters(self) -> Sequence[ParameterSpec]:
+        return self._parameters
+
+    @parameters.setter
+    def parameters(self, specs: Sequence[ParameterSpec]) -> None:
+        self._parameters = specs
+        # Build lookup map (names only; aliases can be layered later if needed)
+        self._param_index = {p.name: i for i, p in enumerate(specs)}
+
+    def parameter_index(self, name: str) -> int:
+        if self._param_index is None:
+            raise KeyError("parameter index map not initialized; set state.parameters first")
+        return self._param_index[name]
+
+    def get_parameter(self, name: str) -> ParameterSpec:
+        # Delegate to parameter_index for consistent validation
+        return self._parameters[self.parameter_index(name)]
