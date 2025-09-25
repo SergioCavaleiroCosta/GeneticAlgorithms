@@ -44,10 +44,11 @@ def main() -> None:
     initializer = RealVectorInitializer(population_size=50, parameters=parameters)
     # Define GA operators explicitly (probabilities live in strategies)
     selection = TournamentSelection(k=3)
-    crossover = ArithmeticCrossover(alpha=0.5, prob=0.9)
+    # alpha omitted => random alpha sampled each crossover for added diversity
+    crossover = ArithmeticCrossover(prob=0.9)
     # Internal representation is normalized [0,1]^d
     mutation = UniformMutation(scale=0.2, prob=0.2, normalized=True)
-    elitism = TopKElitism[NDArrayFloat, float](k=2)
+    elitism = TopKElitism[NDArrayFloat, float](k=1)
 
     updater = RealVectorGA(
         problem,
