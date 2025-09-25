@@ -69,8 +69,16 @@ def main() -> None:
     state.parameters = parameters
     dispatcher = EventDispatcher[NDArrayFloat, float]()
 
-    # Plot only first two dimensions; others auto-filled by current best solution
-    plotter = SpherePlotter(update_every=1, param_pair=(0, 1))
+    # Plot selected pair (defaults to first two). The remaining 8 dimensions are
+    # dynamically fixed to the CURRENT BEST individual's real values each time
+    # the best changes (hyperplane follows the best). This is already provided
+    # by the base plotter when fixed_values is not specified.
+    # Focus visualization on x3 vs x5 (zero-based indices 3 and 5). All other
+    # dimensions are dynamically fixed to the real values of the CURRENT BEST
+    # individual (hyperplane follows the best). This leverages the built-in
+    # dynamic best fill: we provide no fixed_values so the plotter uses the
+    # best solution for remaining coordinates.
+    plotter = SpherePlotter(update_every=1, param_pair=(3, 5))
     dispatcher.add_strategy(Stage.RUN_START, plotter)
     dispatcher.add_strategy(Stage.ITERATION, plotter)
 
