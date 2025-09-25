@@ -25,14 +25,8 @@ class EggholderProblem(BaseOptimizationProblem[NDArrayFloat, float]):
 
     Domain: x, y in [-512, 512]
     Global minimum at (512, 404.2319) with value ~ -959.6407 (depending on convention)
-    We’ll use the standard definition from literature.
+    We'll use the standard definition from literature.
     """
-
-    def __init__(self) -> None:
-        super().__init__()
-        # Parameters are now expected to be managed externally (engine.state.parameters)
-        # Problem keeps only intrinsic dimension knowledge.
-        self._parameters: tuple[()] = tuple()
 
     @property
     def dimension(self) -> Optional[int]:
@@ -41,10 +35,11 @@ class EggholderProblem(BaseOptimizationProblem[NDArrayFloat, float]):
     # parameters property intentionally removed; parameters live in engine.state
 
     def evaluate(self, solution: NDArrayFloat) -> float:
-        # Ensure shape (2,) then evaluate via shared vectorized formula
-        x = float(solution[0])
-        y = float(solution[1])
-        value = float(eggholder_formula(x, y))
+        # Extract parameters for function evaluation
+        x, y = solution
+        # Evaluate the eggholder formula
+        value = eggholder_formula(x, y)
+        # Increment evaluation count
         self.increment_evaluation_count()
         return value
 
