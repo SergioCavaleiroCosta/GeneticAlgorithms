@@ -158,3 +158,14 @@ uv run python examples/rastrigin/run_ga.py
 
 All examples share the same core engine and operator abstractions, highlighting reuse.
 
+### Ackley (10D)
+Located in `examples/ackley/`. Demonstrates:
+- Non-separable, widely used multimodal benchmark with exponential and cosine terms
+- Larger evaluation/iteration budget due to flat outer region + central basin
+- Dynamic best-solution-driven hyperplane for remaining 8 dimensions
+
+Run:
+```bash
+uv run python examples/ackley/run_ga.py
+```
+
