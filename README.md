@@ -145,3 +145,16 @@ uv run python examples/sphere/run_ga.py
 
 Both examples denormalize the final best candidate for reporting and showcase the stage-based event system for live visualization.
 
+### Rastrigin (10D)
+Located in `examples/rastrigin/`. Demonstrates:
+- Multimodal landscape (many local minima) stressing exploration
+- Dynamic best-based slicing for 2D contour (first two dimensions by default)
+- Slightly larger population and run length to sample rugged landscape
+
+Run:
+```bash
+uv run python examples/rastrigin/run_ga.py
+```
+
+All examples share the same core engine and operator abstractions, highlighting reuse.
+
