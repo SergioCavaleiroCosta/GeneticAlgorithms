@@ -35,6 +35,19 @@ class ContourPopulationPlotter2D(OptimizationStageStrategy[ST, OT]):
         fallback path used). Keep modest to avoid overhead.
     contour_levels : int
         Number of contour levels for contourf.
+    param_pair : tuple[int, int] | None
+        Explicit zero-based indices of the two parameters to visualize. Mutually
+        exclusive with `param_names`. Defaults to the first two parameters when
+        omitted.
+    param_names : tuple[str, str] | None
+        Names of the two parameters to visualize (if indices not supplied).
+    fixed_values : Mapping[str, float] | None
+        Real-domain fixed values for parameters not in the chosen pair. Keys are
+        parameter names. Unspecified names use midpoint if `midpoint_fallback` is True
+        else the lower bound.
+    midpoint_fallback : bool
+        When True (default) fill unspecified fixed parameters with the midpoint of
+        their real interval; otherwise use the lower bound.
     """
 
     def __init__(
@@ -44,11 +57,20 @@ class ContourPopulationPlotter2D(OptimizationStageStrategy[ST, OT]):
         scatter_kwargs: Optional[Mapping[str, Any]] = None,
         grid_size: int = 120,
         contour_levels: int = 40,
+        param_pair: Optional[Tuple[int, int]] = None,
+        param_names: Optional[Tuple[str, str]] = None,
+        fixed_values: Optional[Mapping[str, float]] = None,
+        midpoint_fallback: bool = True,
     ) -> None:
         self._scatter_kwargs = dict(scatter_kwargs or {"c": "yellow", "edgecolors": "k", "s": 30, "alpha": 0.8})
         self._update_every = max(1, update_every)
         self._grid_size = max(10, grid_size)
         self._contour_levels = max(2, contour_levels)
+        # Parameter selection configuration
+        self._param_pair = param_pair
+        self._param_names = param_names
+        self._fixed_values = dict(fixed_values or {})
+        self._midpoint_fallback = midpoint_fallback
 
         # Runtime state
         self._tick = 0
@@ -59,9 +81,35 @@ class ContourPopulationPlotter2D(OptimizationStageStrategy[ST, OT]):
         self._scatter = None
 
     # ------------------------------------------------------------------
+    def _resolve_param_indices(self, engine: "OptimizationEngine[ST, OT]") -> Tuple[int, int]:
+        params = list(engine.parameters)
+        n = len(params)
+        if n < 2:
+            raise ValueError("Need at least two parameters for 2D plotting")
+        if self._param_pair is not None:
+            i, j = self._param_pair
+            if not (0 <= i < n and 0 <= j < n and i != j):
+                raise ValueError("param_pair indices out of range or equal")
+            return i, j
+        if self._param_names is not None:
+            names = [p.name for p in params]
+            try:
+                i = names.index(self._param_names[0])
+                j = names.index(self._param_names[1])
+            except ValueError as e:
+                raise ValueError("param_names not found in parameters") from e
+            if i == j:
+                raise ValueError("param_names must refer to two distinct parameters")
+            return i, j
+        return 0, 1
+
     def _compute_bounds(self, engine: "OptimizationEngine[ST, OT]") -> list[Tuple[float, float]]:
-        params = engine.parameters
-        return [(p.normalizer.lo, p.normalizer.hi) for p in params[:2]]
+        params = list(engine.parameters)
+        i, j = self._resolve_param_indices(engine)
+        return [
+            (params[i].normalizer.lo, params[i].normalizer.hi),
+            (params[j].normalizer.lo, params[j].normalizer.hi),
+        ]
 
     def _build_grid(self, engine: "OptimizationEngine[ST, OT]", bounds: list[Tuple[float, float]]) -> tuple[Any, Any, Any]:
         if self._grid_cache is not None:
@@ -70,15 +118,34 @@ class ContourPopulationPlotter2D(OptimizationStageStrategy[ST, OT]):
         xs = np.linspace(x_min, x_max, self._grid_size, dtype=np.float64)
         ys = np.linspace(y_min, y_max, self._grid_size, dtype=np.float64)
         X, Y = np.meshgrid(xs, ys)
-        
-        # Use problem.evaluate for each grid point; restore evaluation counter
+
+        # Prepare base vector for other dimensions
+        params = list(engine.parameters)
+        i, j = self._resolve_param_indices(engine)
+        d = len(params)
+        base = np.zeros(d, dtype=np.float64)
+        # Fill base with fixed values or midpoints
+        for idx, p in enumerate(params):
+            if idx in (i, j):
+                continue
+            name = p.name
+            if name in self._fixed_values:
+                base[idx] = float(self._fixed_values[name])
+            elif self._midpoint_fallback:
+                base[idx] = 0.5 * (p.normalizer.lo + p.normalizer.hi)
+            else:
+                base[idx] = p.normalizer.lo
+
+        # Evaluate grid
         prev_eval = engine.problem.evaluation_count
         shape = X.shape
-        pts = np.stack([X.ravel(), Y.ravel()], axis=1)
         vals: list[float] = []
-        for row in pts:
+        for x_val, y_val in zip(X.ravel(), Y.ravel()):
+            vec = base.copy()
+            vec[i] = x_val
+            vec[j] = y_val
             try:
-                vals.append(float(engine.problem.evaluate(row))) 
+                vals.append(float(engine.problem.evaluate(cast(Any, vec))))
             except Exception:
                 vals.append(np.nan)
         try:
@@ -86,7 +153,6 @@ class ContourPopulationPlotter2D(OptimizationStageStrategy[ST, OT]):
         except Exception:
             pass
         Z = np.asarray(vals, dtype=np.float64).reshape(shape)
-
         self._grid_cache = (X, Y, Z)
         return self._grid_cache
 
@@ -94,9 +160,11 @@ class ContourPopulationPlotter2D(OptimizationStageStrategy[ST, OT]):
         plt_mod = cast(Any, plt)
         plt_mod.ion()
         fig, ax = plt_mod.subplots(figsize=(7, 6))
+        i, j = self._resolve_param_indices(engine)
+        params = list(engine.parameters)
         ax.set_title("Population with contour")
-        ax.set_xlabel("x")
-        ax.set_ylabel("y")
+        ax.set_xlabel(params[i].name)
+        ax.set_ylabel(params[j].name)
         ax.set_xlim(*bounds[0])
         ax.set_ylim(*bounds[1])
         try:
@@ -128,13 +196,15 @@ class ContourPopulationPlotter2D(OptimizationStageStrategy[ST, OT]):
             real[:, j] = np.array(converted_vals, dtype=real.dtype)
         return real
 
-    def _update_scatter(self, pts: NDArrayFloat) -> None:
+    def _update_scatter(self, pts: NDArrayFloat, engine: "OptimizationEngine[ST, OT]") -> None:
         if self._fig is None or self._ax is None:
             return
+        i, j = self._resolve_param_indices(engine)
+        proj = pts[:, [i, j]]
         if self._scatter is None:
-            self._scatter = self._ax.scatter(pts[:, 0], pts[:, 1], **self._scatter_kwargs)
+            self._scatter = self._ax.scatter(proj[:, 0], proj[:, 1], **self._scatter_kwargs)
         else:
-            self._scatter.set_offsets(pts[:, :2])
+            self._scatter.set_offsets(proj)
         canvas = self._fig.canvas
         canvas.draw()
         canvas.flush_events()
@@ -147,7 +217,7 @@ class ContourPopulationPlotter2D(OptimizationStageStrategy[ST, OT]):
             if engine.population.size > 0:
                 pts = np.asarray(engine.population.candidates, dtype=np.float64)
                 pts = self._denormalize(engine, pts)
-                self._update_scatter(pts)
+                self._update_scatter(pts, engine)
         elif stage == Stage.ITERATION:
             if self._fig is None:
                 return
@@ -158,7 +228,7 @@ class ContourPopulationPlotter2D(OptimizationStageStrategy[ST, OT]):
             if pts.size == 0:
                 return
             pts = self._denormalize(engine, pts)
-            self._update_scatter(pts)
+            self._update_scatter(pts, engine)
         else:
             # RUN_END: leave figure open
             pass
