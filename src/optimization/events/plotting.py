@@ -82,25 +82,23 @@ class ContourPopulationPlotter2D(OptimizationStageStrategy[ST, OT]):
         xs = np.linspace(x_min, x_max, self._grid_size, dtype=np.float64)
         ys = np.linspace(y_min, y_max, self._grid_size, dtype=np.float64)
         X, Y = np.meshgrid(xs, ys)
+        
         # Use problem.evaluate for each grid point; restore evaluation counter
-        problem = getattr(engine, "problem", None)
-        if problem is not None:
-            prev_eval = getattr(problem, "evaluation_count", 0)
-            shape = X.shape
-            pts = np.stack([X.ravel(), Y.ravel()], axis=1)
-            vals: list[float] = []
-            for row in pts:
-                try:
-                    vals.append(float(problem.evaluate(row)))  # type: ignore[arg-type]
-                except Exception:
-                    vals.append(np.nan)
+        prev_eval = engine.problem.evaluation_count
+        shape = X.shape
+        pts = np.stack([X.ravel(), Y.ravel()], axis=1)
+        vals: list[float] = []
+        for row in pts:
             try:
-                problem.evaluation_count = prev_eval  # type: ignore[attr-defined]
+                vals.append(float(engine.problem.evaluate(row))) 
             except Exception:
-                pass
-            Z = np.asarray(vals, dtype=np.float64).reshape(shape)
-        else:
-            Z = np.zeros_like(X)
+                vals.append(np.nan)
+        try:
+            engine.problem.evaluation_count = prev_eval
+        except Exception:
+            pass
+        Z = np.asarray(vals, dtype=np.float64).reshape(shape)
+
         self._grid_cache = (X, Y, Z)
         return self._grid_cache
 
