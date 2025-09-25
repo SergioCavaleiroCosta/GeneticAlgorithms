@@ -7,7 +7,7 @@ from optimization.optimization_problem import BaseOptimizationProblem
 from optimization.types import NDArrayFloat
 
 
-def rastrigin(values: np.ndarray) -> float:
+def rastrigin(values: NDArrayFloat) -> float:
     """Compute the Rastrigin function for a 1D numpy array.
 
     Standard definition (A=10):

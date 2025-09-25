@@ -79,6 +79,8 @@ class ContourPopulationPlotter2D(OptimizationStageStrategy[ST, OT]):
         self._ax = None
         self._contour = None
         self._scatter = None
+        # Track last best solution (normalized) snapshot for cache invalidation
+        self._last_best_key: Optional[tuple[float, ...]] = None
 
     # ------------------------------------------------------------------
     def _resolve_param_indices(self, engine: "OptimizationEngine[ST, OT]") -> Tuple[int, int]:
@@ -124,13 +126,31 @@ class ContourPopulationPlotter2D(OptimizationStageStrategy[ST, OT]):
         i, j = self._resolve_param_indices(engine)
         d = len(params)
         base = np.zeros(d, dtype=np.float64)
-        # Fill base with fixed values or midpoints
+        # Determine template real values for non-plotted dimensions
+        state = getattr(engine, "_state", None)
+        use_best = (not self._fixed_values) and state is not None and hasattr(state, "best_solution")
+        best_real: list[float] | None = None
+        if use_best:
+            try:
+                # best_solution is normalized; convert to real
+                norm_best = np.asarray(state.best_solution, dtype=np.float64)  # type: ignore[attr-defined]
+                best_real = []
+                for idx2, p in enumerate(params):
+                    nb = norm_best[idx2] if idx2 < norm_best.shape[0] else 0.0
+                    try:
+                        best_real.append(float(p.normalizer.to_real(float(nb))))
+                    except Exception:
+                        best_real.append(float(nb))
+            except Exception:
+                best_real = None
         for idx, p in enumerate(params):
             if idx in (i, j):
                 continue
             name = p.name
             if name in self._fixed_values:
                 base[idx] = float(self._fixed_values[name])
+            elif best_real is not None:
+                base[idx] = best_real[idx]
             elif self._midpoint_fallback:
                 base[idx] = 0.5 * (p.normalizer.lo + p.normalizer.hi)
             else:
@@ -224,6 +244,29 @@ class ContourPopulationPlotter2D(OptimizationStageStrategy[ST, OT]):
             self._tick += 1
             if (self._tick % self._update_every) != 0:
                 return
+            # Invalidate grid cache if best solution changed (when using dynamic best fill)
+            if not self._fixed_values:
+                try:
+                    state = getattr(engine, "_state", None)
+                    if state is not None:
+                        norm_best = tuple(float(x) for x in state.best_solution)  # type: ignore[attr-defined]
+                    else:
+                        norm_best = ()
+                    if norm_best != self._last_best_key:
+                        self._grid_cache = None
+                        self._last_best_key = norm_best
+                        # Replot contour if present
+                        if self._ax is not None and self._contour is not None:
+                            try:
+                                bounds = self._compute_bounds(engine)
+                                X, Y, Z = self._build_grid(engine, bounds)
+                                for c in self._contour.collections:
+                                    c.remove()
+                                self._contour = self._ax.contourf(X, Y, Z, levels=self._contour_levels, cmap="viridis")
+                            except Exception:
+                                pass
+                except Exception:
+                    pass
             pts = np.asarray(engine.population.candidates, dtype=np.float64)
             if pts.size == 0:
                 return
