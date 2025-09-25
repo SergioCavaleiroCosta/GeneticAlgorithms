@@ -1,7 +1,9 @@
 """Generic optimization engine orchestrating initialization, stepping, and convergence."""
 from __future__ import annotations
-from typing import Generic
+from typing import Generic, Sequence
 from time import perf_counter
+
+from optimization.parameters.protocols import ParameterSpec
 from .types import ST, OT
 from .optimization_result import OptimizationResult
 from .solution_initializer import SolutionInitializer
@@ -28,6 +30,7 @@ class OptimizationEngine(Generic[ST, OT]):
         convergence: ConvergenceChecker[ST, OT],
         state: OptimizationState[ST, OT],
         dispatcher: EventDispatcher[ST, OT] | None = None,
+        parameters: Sequence[ParameterSpec] = [],
     ) -> None:
         self._initializer = initializer
         self._updater = updater
@@ -42,6 +45,9 @@ class OptimizationEngine(Generic[ST, OT]):
         self._updater.set_dispatcher(self._dispatcher)
         # Run timing (set at the start of run())
         self._run_start_time: float = 0.0
+
+        self._state.parameters = parameters
+
         
     @property
     def population(self) -> Population[ST, OT]:
@@ -52,6 +58,10 @@ class OptimizationEngine(Generic[ST, OT]):
     def problem(self):
         """Expose the associated optimization problem via the updater."""
         return self._updater.problem
+
+    @property
+    def parameters(self):  # public accessor for parameter specs stored in state
+        return self._state.parameters
 
     def initialize(self) -> Population[ST, OT]:
         """Reset and prepare the initial state for a run.

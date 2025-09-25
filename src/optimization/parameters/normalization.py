@@ -11,23 +11,31 @@ class LinearNormalization(NormalizationStrategy):  # structural + explicit for c
 
     Degenerate intervals (lo == hi) map every value to 0.0 and back to lo.
     """
-    lo: float
-    hi: float
+    _lo: float
+    _hi: float
 
     def __post_init__(self) -> None:
-        orig_lo, orig_hi = float(self.lo), float(self.hi)
+        orig_lo, orig_hi = float(self._lo), float(self._hi)
         lo, hi = (orig_lo, orig_hi) if orig_lo <= orig_hi else (orig_hi, orig_lo)
-        object.__setattr__(self, "lo", lo)
-        object.__setattr__(self, "hi", hi)
+        object.__setattr__(self, "_lo", lo)
+        object.__setattr__(self, "_hi", hi)
 
     @property
     def span(self) -> float:
-        return self.hi - self.lo
+        return self._hi - self._lo
 
     def to_norm(self, real: float) -> float:
         if self.span == 0.0:
             return 0.0
-        return (float(real) - self.lo) / self.span
+        return (float(real) - self._lo) / self.span
 
     def to_real(self, norm: float) -> float:
-        return self.lo if self.span == 0.0 else self.lo + float(norm) * self.span
+        return self._lo if self.span == 0.0 else self._lo + float(norm) * self.span
+
+    @property
+    def lo(self) -> float:
+        return self._lo
+    
+    @property
+    def hi(self) -> float:
+        return self._hi

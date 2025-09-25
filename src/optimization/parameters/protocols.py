@@ -7,6 +7,12 @@ class NormalizationStrategy(Protocol):
     def to_norm(self, real: float) -> float: ...
     def to_real(self, norm: float) -> float: ...
 
+    @property
+    def lo(self) -> float: ...
+    
+    @property
+    def hi(self) -> float: ...
+
 
 @runtime_checkable
 class ParameterSpec(Protocol):
@@ -28,6 +34,7 @@ class ParameterSpec(Protocol):
 
     @property
     def meta(self) -> Mapping[str, Any] | None: ...
+
 
 
 __all__ = [

@@ -1,7 +1,7 @@
 """Reusable plotting strategies for optimization runs (scatter + optional contour)."""
 from __future__ import annotations
 
-from typing import Any, Mapping, Optional, Tuple, Sequence, TYPE_CHECKING, cast
+from typing import Any, Mapping, Optional, Tuple, TYPE_CHECKING, cast
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -60,20 +60,8 @@ class ContourPopulationPlotter2D(OptimizationStageStrategy[ST, OT]):
 
     # ------------------------------------------------------------------
     def _compute_bounds(self, engine: "OptimizationEngine[ST, OT]") -> list[Tuple[float, float]]:
-        params = getattr(getattr(engine, "problem", object()), "parameters", None)
-        if not params:
-            return [(0.0, 1.0), (0.0, 1.0)]
-        lo_hi: list[Tuple[float, float]] = []
-        for p in params[:2]:
-            norm = getattr(p, "normalizer", None)
-            lo = float(getattr(norm, "lo", 0.0)) if norm is not None else 0.0
-            hi = float(getattr(norm, "hi", 1.0)) if norm is not None else 1.0
-            if lo > hi:
-                lo, hi = hi, lo
-            lo_hi.append((lo, hi))
-        while len(lo_hi) < 2:
-            lo_hi.append((0.0, 1.0))
-        return lo_hi
+        params = engine.parameters
+        return [(p.normalizer.lo, p.normalizer.hi) for p in params[:2]]
 
     def _build_grid(self, engine: "OptimizationEngine[ST, OT]", bounds: list[Tuple[float, float]]) -> tuple[Any, Any, Any]:
         if self._grid_cache is not None:
@@ -114,7 +102,7 @@ class ContourPopulationPlotter2D(OptimizationStageStrategy[ST, OT]):
         try:
             X, Y, Z = self._build_grid(engine, bounds)
             self._contour = ax.contourf(X, Y, Z, levels=self._contour_levels, cmap="viridis")
-            fig.colorbar(self._contour, ax=ax, shrink=0.85)  # type: ignore[arg-type]
+            fig.colorbar(self._contour, ax=ax, shrink=0.85)
         except Exception:
             self._contour = None
         self._fig = fig
@@ -122,19 +110,22 @@ class ContourPopulationPlotter2D(OptimizationStageStrategy[ST, OT]):
         plt_mod.show(block=False)
 
     def _denormalize(self, engine: "OptimizationEngine[ST, OT]", points: NDArrayFloat) -> NDArrayFloat:
-        params: Optional[Sequence[Any]] = getattr(getattr(engine, "problem", object()), "parameters", None)
+        # Direct attribute access; assume engine.problem.parameters exists.
+        params = list(engine.parameters)
         if not params or points.ndim != 2:
             return points
         real = points.copy()
-        for j, p in enumerate(params[: real.shape[1]]):
-            norm = getattr(p, "normalizer", None)
-            to_real = getattr(norm, "to_real", None) if norm is not None else None
-            if not callable(to_real):
-                continue
-            try:
-                real[:, j] = [float(to_real(float(v))) for v in real[:, j]]  # type: ignore[arg-type]
-            except Exception:
-                pass
+        dim = real.shape[1]
+        for j, p in enumerate(params[:dim]):
+            norm = p.normalizer  # assume exists
+            to_real = norm.to_real  # assume exists & callable
+            converted_vals: list[float] = []
+            for v in real[:, j]:  # type: ignore[assignment]
+                try:
+                    converted_vals.append(float(to_real(float(v))))
+                except Exception:
+                    converted_vals.append(float(v))
+            real[:, j] = np.array(converted_vals, dtype=real.dtype)
         return real
 
     def _update_scatter(self, pts: NDArrayFloat) -> None:
@@ -149,7 +140,7 @@ class ContourPopulationPlotter2D(OptimizationStageStrategy[ST, OT]):
         canvas.flush_events()
 
     # ------------------------------------------------------------------
-    def execute(self, engine: "OptimizationEngine[ST, OT]", stage: Stage) -> None:  # type: ignore[override]
+    def execute(self, engine: "OptimizationEngine[ST, OT]", stage: Stage) -> None:
         if stage == Stage.RUN_START:
             bounds = self._compute_bounds(engine)
             self._setup_figure(bounds, engine)

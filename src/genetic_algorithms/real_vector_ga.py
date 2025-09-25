@@ -79,17 +79,10 @@ class RealVectorGA(UpdateRule[NDArrayFloat, float]):
         n = population.size
         if n == 0:
             raise RuntimeError("Population is empty; cannot step GA")
-
-        params = getattr(self._problem, "parameters", None)
+        params = engine.parameters
         def evaluate_candidate(vec: NDArrayFloat) -> float:
-            """Evaluate a candidate that may be normalized.
-
-            If parameters are defined, treat vec as normalized and map to real
-            domain for objective evaluation.
-            """
-            if params is not None and len(params) == vec.shape[0]:
-                # Denormalize
-                import numpy as np
+            import numpy as np
+            if len(params) == vec.shape[0]:
                 real = np.array([p.normalizer.to_real(vec[i]) for i, p in enumerate(params)], dtype=np.float64)
                 return float(self._problem.evaluate(real))
             return float(self._problem.evaluate(vec))
@@ -110,10 +103,9 @@ class RealVectorGA(UpdateRule[NDArrayFloat, float]):
             c1 = self._mutate(c1)
             c2 = self._mutate(c2)
             # If normalized domain, clamp to [0,1] to keep validity
-            if params is not None:
-                import numpy as np
-                np.clip(c1, 0.0, 1.0, out=c1)
-                np.clip(c2, 0.0, 1.0, out=c2)
+            import numpy as np
+            np.clip(c1, 0.0, 1.0, out=c1)
+            np.clip(c2, 0.0, 1.0, out=c2)
 
             # Evaluate children and append (respect population size)
             for child in (c1, c2):

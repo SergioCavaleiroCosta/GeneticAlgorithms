@@ -17,14 +17,31 @@ from optimization.types import NDArrayFloat
 
 from genetic_algorithms import RealVectorInitializer, RealVectorGA, TournamentSelection, ArithmeticCrossover, UniformMutation, TopKElitism
 from examples.eggholder.problem import EggholderProblem
+from optimization.parameters import ContinuousParameter, LinearNormalization
 from examples.eggholder.plotting import EggholderPlotter
 
 
 def main() -> None:
     problem = EggholderProblem()
 
+    # Define parameter specifications externally and store in state
+    parameters = [
+        ContinuousParameter(
+            _name="x",
+            _normalizer=LinearNormalization(-512.0, 512.0),
+            _description="Eggholder x dimension",
+            _unit="units",
+        ),
+        ContinuousParameter(
+            _name="y",
+            _normalizer=LinearNormalization(-512.0, 512.0),
+            _description="Eggholder y dimension",
+            _unit="units",
+        ),
+    ]
+
     # Components
-    initializer = RealVectorInitializer(population_size=50)
+    initializer = RealVectorInitializer(population_size=50, parameters=parameters)
     # Define GA operators explicitly (probabilities live in strategies)
     selection = TournamentSelection(k=3)
     crossover = ArithmeticCrossover(alpha=0.5, prob=0.9)
@@ -46,6 +63,7 @@ def main() -> None:
     )
 
     state = OptimizationState[NDArrayFloat, float]()
+    state.parameters = parameters  # make available globally to engine & strategies
     dispatcher = EventDispatcher[NDArrayFloat, float]()
     # Add real-time plotting strategy (auto-derives bounds & denormalizes internally)
     plotter = EggholderPlotter(update_every=1)
@@ -53,20 +71,16 @@ def main() -> None:
     dispatcher.add_strategy(Stage.ITERATION, plotter)
 
     engine = OptimizationEngine[NDArrayFloat, float](
-        initializer, updater, convergence, state, dispatcher
+        initializer, updater, convergence, state, dispatcher, parameters=parameters
     )
 
     result = engine.run()
     # Denormalize best solution for reporting
-    params = getattr(problem, "parameters", None)
-    best_real = None
-    if params is not None:
-        import numpy as np  # local import to avoid unused if not used
-        norm = result.best_solution
-        best_real = np.array([p.normalizer.to_real(norm[i]) for i, p in enumerate(params)], dtype=float)
+    import numpy as np
+    norm = result.best_solution
+    best_real = np.array([p.normalizer.to_real(norm[i]) for i, p in enumerate(parameters)], dtype=float)
     print("Best solution (normalized):", result.best_solution)
-    if best_real is not None:
-        print("Best solution (real):", best_real)
+    print("Best solution (real):", best_real)
     print("Best objective:", result.best_objective)
     print("Iterations:", result.iterations)
     print("Execution time (s):", result.execution_time)
