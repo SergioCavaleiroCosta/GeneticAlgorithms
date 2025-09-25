@@ -1,0 +1,32 @@
+from __future__ import annotations
+
+from optimization.events import ContourPopulationPlotter2D
+
+
+class StyblinskiTangPlotter(ContourPopulationPlotter2D):  # type: ignore[type-arg]
+    """Thin wrapper for 2D contour visualization of the Styblinski–Tang function.
+
+    For dimension >2, remaining coordinates are fixed to the current best real values
+    (dynamic hyperplane slicing).
+    """
+
+    def __init__(
+        self,
+        update_every: int = 1,
+        *,
+        param_pair: tuple[int, int] | None = None,
+        param_names: tuple[str, str] | None = None,
+        fixed_values: dict[str, float] | None = None,
+        midpoint_fallback: bool = True,
+        **scatter_kwargs: object,
+    ) -> None:
+        super().__init__(
+            update_every=update_every,
+            scatter_kwargs=scatter_kwargs,
+            param_pair=param_pair,
+            param_names=param_names,
+            fixed_values=fixed_values,
+            midpoint_fallback=midpoint_fallback,
+        )
+
+__all__ = ["StyblinskiTangPlotter"]
