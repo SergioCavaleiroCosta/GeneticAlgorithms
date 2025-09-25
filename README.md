@@ -158,6 +158,17 @@ uv run python examples/rastrigin/run_ga.py
 
 All examples share the same core engine and operator abstractions, highlighting reuse.
 
+### Rosenbrock (10D)
+Located in `examples/rosenbrock/`. Demonstrates:
+- Narrow curved valley (ill-conditioned) challenging for naive search
+- Uses reduced domain [-2, 2] to focus search near optimum
+- Dynamic best hyperplane slicing via shared contour plotter
+
+Run:
+```bash
+uv run python examples/rosenbrock/run_ga.py
+```
+
 ### Ackley (10D)
 Located in `examples/ackley/`. Demonstrates:
 - Non-separable, widely used multimodal benchmark with exponential and cosine terms
