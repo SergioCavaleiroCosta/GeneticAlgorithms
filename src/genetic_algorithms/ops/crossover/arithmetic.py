@@ -7,26 +7,22 @@ from .protocols import CrossoverStrategy
 
 
 class ArithmeticCrossover(CrossoverStrategy[NDArrayFloat]):
-    """Single-locus arithmetic + tail-swap crossover.
+    """Random-subset multi-allele arithmetic crossover.
 
-    Behavior:
-      1. With probability ``prob`` crossover is applied; otherwise parents are copied.
-      2. Choose a random allele index ``k`` in ``[0, n-1]`` (n = genome length).
-      3. Sample a mixing weight ``w ~ U(0,1)``.
-      4. Blend only allele ``k``:
+    Behavior when applied (with probability ``prob``):
+      1. Let ``n`` be genome length.
+      2. Draw an integer subset size ``m`` uniformly from ``[1, n]``.
+      3. Sample ``m`` distinct allele indices without replacement.
+      4. For each selected index ``i`` sample an independent weight ``w_i ~ U(0,1)`` and blend:
 
-            c1[k] = w * a[k] + (1 - w) * b[k]
-            c2[k] = w * b[k] + (1 - w) * a[k]
+            c1[i] = w_i * a[i] + (1 - w_i) * b[i]
+            c2[i] = w_i * b[i] + (1 - w_i) * a[i]
 
-      5. For all positions strictly after ``k`` (k+1 .. end) swap the parent tails:
+         Non-selected indices are copied directly (c1[i] = a[i], c2[i] = b[i]).
 
-            c1[j] = b[j]; c2[j] = a[j]  for j > k
-
-         Positions before k (0 .. k-1) are copied directly from their respective parents.
-
-    This operator combines localized exploration at a single locus (arithmetic blend)
-    with disruptive recombination of the remaining tail, encouraging both fine-grained
-    exploitation and diversity injection.
+    This generalizes classic arithmetic crossover by introducing adaptive locality: when
+    ``m`` is small, it performs fine-grained perturbation; when ``m`` approaches ``n`` it
+    approximates full-vector arithmetic blending with per-gene random weights.
 
     Parameters
     ----------
@@ -49,20 +45,22 @@ class ArithmeticCrossover(CrossoverStrategy[NDArrayFloat]):
         if self._rng.random() > self._prob:
             return a.copy(), b.copy()
         n = a.shape[0]
-        # Choose blend locus
-        k = self._rng.randrange(n)
-        w = self._rng.random()
-        # Allocate offspring as copies (so we can modify in-place)
+        # Draw subset size m in [1, n]
+        m = self._rng.randrange(1, n + 1)
+        # Sample m distinct indices without replacement
+        # For small n we can afford simple sampling loop
+        indices = list(range(n))
+        self._rng.shuffle(indices)
+        sel = indices[:m]
+        # Prepare offspring copies
         c1 = a.copy().astype(np.float64, copy=False)
         c2 = b.copy().astype(np.float64, copy=False)
-        # Blend only locus k
-        ak = a[k]
-        bk = b[k]
-        c1[k] = w * ak + (1.0 - w) * bk
-        c2[k] = w * bk + (1.0 - w) * ak
-        # Swap tails after k
-        if k + 1 < n:
-            c1[k + 1 :], c2[k + 1 :] = b[k + 1 :], a[k + 1 :]
+        for idx in sel:
+            w = self._rng.random()
+            ai = a[idx]
+            bi = b[idx]
+            c1[idx] = w * ai + (1.0 - w) * bi
+            c2[idx] = w * bi + (1.0 - w) * ai
         return c1, c2
 
 __all__ = ["ArithmeticCrossover"]
