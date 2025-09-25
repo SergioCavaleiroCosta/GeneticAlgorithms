@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Any
 import numpy as np
 
 from optimization.optimization_problem import BaseOptimizationProblem
@@ -8,7 +8,7 @@ from optimization.types import NDArrayFloat
 from optimization.parameters import ContinuousParameter, LinearNormalization, ParameterSpec
 
 
-def eggholder_formula(x: np.ndarray | float, y: np.ndarray | float):
+def eggholder_formula(x: Any, y: Any) -> Any:
     """Vectorized Eggholder formula.
 
     Accepts scalars or NumPy arrays for x and y; returns matching shape.
@@ -60,12 +60,12 @@ class EggholderProblem(BaseOptimizationProblem[NDArrayFloat, float]):
         return self._parameters
 
     def evaluate(self, solution: NDArrayFloat) -> float:
-        # Ensure shape (2,)
+        # Ensure shape (2,) then evaluate via shared vectorized formula
         x = float(solution[0])
         y = float(solution[1])
-    value = eggholder_formula(x, y)
+        value = float(eggholder_formula(x, y))
         self.increment_evaluation_count()
-        return float(value)
+        return value
 
     def is_feasible(self, solution: NDArrayFloat) -> bool:
         """Check feasibility using parameter normalizers' real-domain intervals.
@@ -91,3 +91,6 @@ class EggholderProblem(BaseOptimizationProblem[NDArrayFloat, float]):
             if not (lo_f <= v <= hi_f):
                 return False
         return True
+
+
+__all__ = ["EggholderProblem", "eggholder_formula"]

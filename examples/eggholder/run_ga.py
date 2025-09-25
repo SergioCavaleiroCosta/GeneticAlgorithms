@@ -17,7 +17,7 @@ from optimization.types import NDArrayFloat
 
 from genetic_algorithms import RealVectorInitializer, RealVectorGA, TournamentSelection, ArithmeticCrossover, UniformMutation, TopKElitism
 from examples.eggholder.problem import EggholderProblem
-from examples.eggholder.plotting import ContourPopulationPlotter, eggholder_function
+from examples.eggholder.plotting import EggholderPlotter
 
 
 def main() -> None:
@@ -47,20 +47,8 @@ def main() -> None:
 
     state = OptimizationState[NDArrayFloat, float]()
     dispatcher = EventDispatcher[NDArrayFloat, float]()
-    # Add real-time plotting strategy
-    # Derive real plotting bounds directly from parameter normalizers (lo/hi) with normalized fallback
-    params = getattr(problem, "parameters", [])
-    from typing import List, Tuple
-    bounds: List[Tuple[float, float]] = []
-    for p in params[:2]:  # only need first two for 2D plot
-        lo = getattr(p.normalizer, "lo", 0.0)  # default to normalized domain if absent
-        hi = getattr(p.normalizer, "hi", 1.0)
-        # Ensure ordering
-        lo_f, hi_f = (lo, hi) if lo <= hi else (hi, lo)
-        bounds.append((lo_f, hi_f))
-    while len(bounds) < 2:
-        bounds.append((0.0, 1.0))
-    plotter = ContourPopulationPlotter(eggholder_function, bounds)  # type: ignore[arg-type]
+    # Add real-time plotting strategy (auto-derives bounds & denormalizes internally)
+    plotter = EggholderPlotter(update_every=1)
     dispatcher.add_strategy(Stage.RUN_START, plotter)
     dispatcher.add_strategy(Stage.ITERATION, plotter)
 
