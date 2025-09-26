@@ -27,6 +27,9 @@ from genetic_algorithms import (
 from optimization.parameters import ContinuousParameter, LinearNormalization
 from examples.ackley.problem import AckleyProblem
 from examples.ackley.plotting import AckleyPlotter
+from examples.eggholder.logging_strategies import PopulationLogger
+from datetime import datetime
+from optimization.events import FrameSaverStrategy, FrameSaverConfig
 
 
 def main() -> None:
@@ -67,10 +70,27 @@ def main() -> None:
     state.parameters = parameters
     dispatcher = EventDispatcher[NDArrayFloat, float]()
 
+    # Output directories (timestamped)
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    out_dir = Path(f"examples/ackley/output_{timestamp}")
+    figures_dir = out_dir / "figures"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    figures_dir.mkdir(parents=True, exist_ok=True)
+
+    # Population logging
+    pop_logger = PopulationLogger(out_dir)
+    dispatcher.add_strategy(Stage.RUN_START, pop_logger)
+    dispatcher.add_strategy(Stage.ITERATION, pop_logger)
+    dispatcher.add_strategy(Stage.RUN_END, pop_logger)
+
     # Visualize first two dimensions; others follow current best (dynamic hyperplane)
-    plotter = AckleyPlotter(update_every=1, param_pair=(0, 1))
+    plotter = AckleyPlotter(update_every=1, param_pair=(0, 1), interactive=False)
     dispatcher.add_strategy(Stage.RUN_START, plotter)
     dispatcher.add_strategy(Stage.ITERATION, plotter)
+
+    frame_saver = FrameSaverStrategy(plotter, figures_dir, config=FrameSaverConfig(prefix="frame", dpi=120))
+    dispatcher.add_strategy(Stage.RUN_START, frame_saver)
+    dispatcher.add_strategy(Stage.ITERATION, frame_saver)
 
     engine = OptimizationEngine[NDArrayFloat, float](
         initializer, updater, convergence, state, dispatcher, parameters=parameters
@@ -85,6 +105,8 @@ def main() -> None:
     print("Best objective:", result.best_objective)
     print("Iterations:", result.iterations)
     print("Execution time (s):", result.execution_time)
+    print(f"Logs written to: {out_dir}")
+    print(f"Figures written to: {figures_dir}")
 
 
 if __name__ == "__main__":

@@ -8,7 +8,8 @@ class AckleyPlotter(ContourPopulationPlotter2D):  # type: ignore[type-arg]
 
     For d>2, shows a 2D contour over a selected parameter pair while fixing
     remaining dimensions to the current best solution's real values (dynamic
-    hyperplane)."""
+    hyperplane). Frame saving is now handled externally by FrameSaverStrategy.
+    """
 
     def __init__(
         self,
@@ -18,6 +19,7 @@ class AckleyPlotter(ContourPopulationPlotter2D):  # type: ignore[type-arg]
         param_names: tuple[str, str] | None = None,
         fixed_values: dict[str, float] | None = None,
         midpoint_fallback: bool = True,
+        interactive: bool = False,
         **scatter_kwargs: object,
     ) -> None:
         super().__init__(
@@ -27,6 +29,7 @@ class AckleyPlotter(ContourPopulationPlotter2D):  # type: ignore[type-arg]
             param_names=param_names,
             fixed_values=fixed_values,
             midpoint_fallback=midpoint_fallback,
+            interactive=interactive,
         )
 
 __all__ = ["AckleyPlotter"]

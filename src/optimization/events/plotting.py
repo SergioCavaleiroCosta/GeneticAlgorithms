@@ -61,6 +61,7 @@ class ContourPopulationPlotter2D(OptimizationStageStrategy[ST, OT]):
         param_names: Optional[Tuple[str, str]] = None,
         fixed_values: Optional[Mapping[str, float]] = None,
         midpoint_fallback: bool = True,
+        interactive: bool = False,
     ) -> None:
         self._scatter_kwargs = dict(
             scatter_kwargs or {"c": "yellow", "edgecolors": "k", "s": 30, "alpha": 0.8}
@@ -86,6 +87,8 @@ class ContourPopulationPlotter2D(OptimizationStageStrategy[ST, OT]):
         self._scatter = None
         # Track last best solution (normalized) snapshot for cache invalidation
         self._last_best_key: Optional[tuple[float, ...]] = None
+        # Headless/interactive mode toggle
+        self._interactive = bool(interactive)
 
     # ------------------------------------------------------------------
     def _resolve_param_indices(self, engine: "OptimizationEngine[ST, OT]") -> Tuple[int, int]:
@@ -183,7 +186,8 @@ class ContourPopulationPlotter2D(OptimizationStageStrategy[ST, OT]):
 
     def _setup_figure(self, bounds: list[Tuple[float, float]], engine: "OptimizationEngine[ST, OT]") -> None:
         plt_mod = cast(Any, plt)
-        plt_mod.ion()
+        if self._interactive:
+            plt_mod.ion()
         fig, ax = plt_mod.subplots(figsize=(7, 6))
         i, j = self._resolve_param_indices(engine)
         params = list(engine.parameters)
@@ -200,7 +204,8 @@ class ContourPopulationPlotter2D(OptimizationStageStrategy[ST, OT]):
             self._contour = None
         self._fig = fig
         self._ax = ax
-        plt_mod.show(block=False)
+        if self._interactive:
+            plt_mod.show(block=False)
 
     def _denormalize(self, engine: "OptimizationEngine[ST, OT]", points: NDArrayFloat) -> NDArrayFloat:
         # Direct attribute access; assume engine.problem.parameters exists.
@@ -239,9 +244,10 @@ class ContourPopulationPlotter2D(OptimizationStageStrategy[ST, OT]):
                 self._scatter.set_zorder(self._scatter_kwargs.get("zorder", 10))
             except Exception:
                 pass
-        canvas = self._fig.canvas
-        canvas.draw()
-        canvas.flush_events()
+        if self._interactive:
+            canvas = self._fig.canvas
+            canvas.draw()
+            canvas.flush_events()
 
     # ------------------------------------------------------------------
     def execute(self, engine: "OptimizationEngine[ST, OT]", stage: Stage) -> None:
