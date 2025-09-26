@@ -18,13 +18,21 @@ from optimization.types import NDArrayFloat
 from genetic_algorithms import RealVectorInitializer, RealVectorGA, TournamentSelection, ArithmeticCrossover, UniformMutation, TopKElitism
 from examples.eggholder.problem import EggholderProblem
 from optimization.parameters import ContinuousParameter, LinearNormalization
+from datetime import datetime
 from examples.eggholder.plotting import EggholderPlotter
+from examples.eggholder.logging_strategies import PopulationLogger
 
 
 def main() -> None:
     problem = EggholderProblem()
 
-    # Define parameter specifications externally and store in state
+    # Output folder for logs & figures (unique per run)
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    out_dir = Path(f"examples/eggholder/output_{timestamp}")
+    figures_dir = out_dir / "figures"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    figures_dir.mkdir(parents=True, exist_ok=True)
+
     parameters = [
         ContinuousParameter(
             name="x",
@@ -40,13 +48,9 @@ def main() -> None:
         ),
     ]
 
-    # Components
     initializer = RealVectorInitializer(population_size=50, parameters=parameters)
-    # Define GA operators explicitly (probabilities live in strategies)
     selection = TournamentSelection(k=3)
-    # alpha omitted => random alpha sampled each crossover for added diversity
     crossover = ArithmeticCrossover(prob=0.9)
-    # Internal representation is normalized [0,1]^d
     mutation = UniformMutation(scale=0.2, prob=0.2, normalized=True)
     elitism = TopKElitism[NDArrayFloat, float](k=1)
 
@@ -66,8 +70,13 @@ def main() -> None:
     state = OptimizationState[NDArrayFloat, float]()
     state.parameters = parameters  # make available globally to engine & strategies
     dispatcher = EventDispatcher[NDArrayFloat, float]()
-    # Add real-time plotting strategy (auto-derives bounds & denormalizes internally)
-    plotter = EggholderPlotter(update_every=1)
+    # Logging strategy
+    pop_logger = PopulationLogger(out_dir)
+    dispatcher.add_strategy(Stage.RUN_START, pop_logger)
+    dispatcher.add_strategy(Stage.ITERATION, pop_logger)
+    dispatcher.add_strategy(Stage.RUN_END, pop_logger)
+
+    plotter = EggholderPlotter(update_every=1, save_dir=figures_dir)
     dispatcher.add_strategy(Stage.RUN_START, plotter)
     dispatcher.add_strategy(Stage.ITERATION, plotter)
 
@@ -85,6 +94,8 @@ def main() -> None:
     print("Best objective:", result.best_objective)
     print("Iterations:", result.iterations)
     print("Execution time (s):", result.execution_time)
+    print(f"Logs written to: {out_dir}")
+    print(f"Figures written to: {figures_dir}")
 
 
 if __name__ == "__main__":

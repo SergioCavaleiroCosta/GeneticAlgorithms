@@ -47,6 +47,7 @@ class EventDispatcher(Generic[ST, OT]):
 
 # Re-export built-in strategy utilities
 from .plotting import ContourPopulationPlotter2D  # noqa: E402
+from .population_logging import PopulationLogger, PopulationLoggerConfig  # noqa: E402
 
 __all__ = [
     "Stage",
@@ -54,4 +55,6 @@ __all__ = [
     "OptimizationStageStrategy",
     "EventDispatcher",
     "ContourPopulationPlotter2D",
+    "PopulationLogger",
+    "PopulationLoggerConfig",
 ]
