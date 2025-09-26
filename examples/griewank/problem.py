@@ -15,7 +15,6 @@ def griewank_vector(x: NDArrayFloat) -> float:
     Domain: x_i in [-600, 600]
     Global minimum: f(0,...,0)=0
     """
-    d = x.shape[0]
     sum_sq = np.sum(np.square(x)) / 4000.0
     prod_cos = 1.0
     for i, val in enumerate(x, start=1):
