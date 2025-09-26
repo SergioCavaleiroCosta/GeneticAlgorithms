@@ -21,6 +21,7 @@ from optimization.parameters import ContinuousParameter, LinearNormalization
 from datetime import datetime
 from examples.eggholder.plotting import EggholderPlotter
 from examples.eggholder.logging_strategies import PopulationLogger
+from optimization.events import FrameSaverStrategy, FrameSaverConfig
 
 
 def main() -> None:
@@ -76,9 +77,13 @@ def main() -> None:
     dispatcher.add_strategy(Stage.ITERATION, pop_logger)
     dispatcher.add_strategy(Stage.RUN_END, pop_logger)
 
-    plotter = EggholderPlotter(update_every=1, save_dir=figures_dir)
+    plotter = EggholderPlotter(update_every=1, interactive=False)
     dispatcher.add_strategy(Stage.RUN_START, plotter)
     dispatcher.add_strategy(Stage.ITERATION, plotter)
+
+    frame_saver = FrameSaverStrategy(plotter, figures_dir, config=FrameSaverConfig(prefix="frame", dpi=120))
+    dispatcher.add_strategy(Stage.RUN_START, frame_saver)
+    dispatcher.add_strategy(Stage.ITERATION, frame_saver)
 
     engine = OptimizationEngine[NDArrayFloat, float](
         initializer, updater, convergence, state, dispatcher, parameters=parameters
