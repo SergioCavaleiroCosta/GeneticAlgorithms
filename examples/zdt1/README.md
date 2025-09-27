@@ -1,7 +1,7 @@
-"""Multi-Objective NSGA-II Example
+"""ZDT1 Multi-Objective Benchmark
 
 This example demonstrates the NSGA-II (Non-dominated Sorting Genetic Algorithm II)
-implementation for multi-objective optimization.
+implementation on the ZDT1 multi-objective benchmark problem.
 
 ## Problem
 
@@ -25,7 +25,7 @@ The NSGA-II implementation includes:
 ## Running the Example
 
 ```bash
-uv run examples/nsga_ii_demo/run_nsga_ii.py
+uv run examples/zdt1/run_nsga_ii.py
 ```
 
 ## Output

@@ -20,8 +20,8 @@ from optimization.types import NDArrayFloat
 from optimization.parameters import ContinuousParameter, LinearNormalization
 
 from nsga_ii import NSGAII, MultiObjectiveInitializer
-from examples.nsga_ii_demo.problems import ZDT1Problem
-from examples.nsga_ii_demo.plotting import ParetoPlotter, MultiObjectivePopulationLogger, plot_pareto_front
+from examples.zdt1.problems import ZDT1Problem
+from examples.zdt1.plotting import ParetoPlotter, MultiObjectivePopulationLogger, plot_pareto_front
 
 
 
@@ -65,7 +65,7 @@ def main() -> None:
     
     # Output directories (timestamped)
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    out_dir = Path(f"examples/nsga_ii_demo/output_{timestamp}")
+    out_dir = Path(f"examples/zdt1/output_{timestamp}")
     out_dir.mkdir(parents=True, exist_ok=True)
     
     # Logging and visualization
@@ -103,7 +103,8 @@ def main() -> None:
     print(f"Output written to: {out_dir}")
     
     # Create final plot with actual final generation number
-    plot_pareto_front(objectives, out_dir, result.iterations)
+    final_iteration = result.iterations or 0
+    plot_pareto_front(objectives, out_dir, final_iteration)
     print(f"Final Pareto front plot saved to: {out_dir}/final_pareto_front.png")
 
 
