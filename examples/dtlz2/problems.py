@@ -85,28 +85,47 @@ class DTLZ2Problem:
         x = np.asarray(solution)
         M = self._num_objectives
         
-        # g(x_M) = sum((xi - 0.5)^2) for i = M to n
+        # g(x_M) = sum((xi - 0.5)^2) for i = M to n (0-indexed: from x[M] onwards)
         if self.dimension > M:
-            g = np.sum((x[M-1:] - 0.5) ** 2)
+            g = np.sum((x[M:] - 0.5) ** 2)
         else:
             g = 0.0
         
-        # Calculate objectives
+        # Simple correct DTLZ2 implementation for M=2 case
         objectives = []
         
-        for i in range(M):
-            # Common factor: (1 + g(x_M))
-            f_i = 1.0 + g
+        if M == 2:
+            # For 2 objectives: quarter circle
+            # f1 = (1+g) * cos(x1*π/2)
+            # f2 = (1+g) * sin(x1*π/2)
+            f1 = (1.0 + g) * np.cos(x[0] * np.pi / 2.0)
+            f2 = (1.0 + g) * np.sin(x[0] * np.pi / 2.0)
+            objectives = [f1, f2]
+        
+        elif M == 3:
+            # For 3 objectives: eighth of sphere
+            # f1 = (1+g) * cos(x1*π/2) * cos(x2*π/2)
+            # f2 = (1+g) * cos(x1*π/2) * sin(x2*π/2)  
+            # f3 = (1+g) * sin(x1*π/2)
+            f1 = (1.0 + g) * np.cos(x[0] * np.pi / 2.0) * np.cos(x[1] * np.pi / 2.0)
+            f2 = (1.0 + g) * np.cos(x[0] * np.pi / 2.0) * np.sin(x[1] * np.pi / 2.0)
+            f3 = (1.0 + g) * np.sin(x[0] * np.pi / 2.0)
+            objectives = [f1, f2, f3]
             
-            # Product of cosines for dimensions before current objective
-            for j in range(M - 1 - i):
-                f_i *= np.cos(x[j] * np.pi / 2.0)
-            
-            # Sine term for current dimension (if not the last objective)
-            if i < M - 1:
-                f_i *= np.sin(x[M - 1 - i] * np.pi / 2.0)
-            
-            objectives.append(float(f_i))
+        else:
+            # General case (for M > 3)
+            for i in range(M):
+                f_i = 1.0 + g
+                
+                # Cosine terms
+                for j in range(M - 1 - i):
+                    f_i *= np.cos(x[j] * np.pi / 2.0)
+                
+                # Sine term (except for last objective)
+                if i < M - 1:
+                    f_i *= np.sin(x[M - 1 - i] * np.pi / 2.0)
+                
+                objectives.append(f_i)
         
         return objectives
     
