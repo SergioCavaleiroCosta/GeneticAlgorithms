@@ -25,7 +25,7 @@ The NSGA-II implementation includes:
 ## Running the Example
 
 ```bash
-python examples/nsga_ii_demo/run_nsga_ii.py
+uv run examples/nsga_ii_demo/run_nsga_ii.py
 ```
 
 ## Output
