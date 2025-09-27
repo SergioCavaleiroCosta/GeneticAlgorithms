@@ -15,9 +15,17 @@ def plot_pareto_front(objectives: list[Sequence[float]], output_dir: Path, itera
     f1_vals = [obj[0] for obj in objectives]
     f2_vals = [obj[1] for obj in objectives]
     
+    # Create appropriate labels based on whether this is final or intermediate plot
+    if iteration >= 0:
+        population_label = f'NSGA-II Population (Gen {iteration})'
+        title = f'NSGA-II on ZDT1 Problem - Generation {iteration}'
+    else:
+        population_label = 'NSGA-II Final Population'
+        title = 'NSGA-II on ZDT1 Problem - Final Result'
+    
     # Create plot
     plt.figure(figsize=(10, 8))
-    plt.scatter(f1_vals, f2_vals, alpha=0.6, s=30, label=f'NSGA-II Population (Gen {iteration})')
+    plt.scatter(f1_vals, f2_vals, alpha=0.6, s=30, label=population_label)
     
     # Plot true Pareto front
     true_front = true_pareto_front_zdt1(100)
@@ -25,7 +33,7 @@ def plot_pareto_front(objectives: list[Sequence[float]], output_dir: Path, itera
     
     plt.xlabel('f1')
     plt.ylabel('f2')
-    plt.title(f'NSGA-II on ZDT1 Problem - Generation {iteration}')
+    plt.title(title)
     plt.legend()
     plt.grid(True, alpha=0.3)
     
