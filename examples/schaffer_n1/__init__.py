@@ -1,0 +1,1 @@
+"""Schaffer N.1 multi-objective benchmark problem."""
