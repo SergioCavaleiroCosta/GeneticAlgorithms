@@ -9,4 +9,5 @@ wheels/
 # Virtual environments
 .venv
 
-examples/
+# Exclude output directories in examples
+examples/*/output_*/
