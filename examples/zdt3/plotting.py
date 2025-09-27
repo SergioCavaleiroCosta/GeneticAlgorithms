@@ -65,10 +65,10 @@ def plot_pareto_front(objectives: list[Sequence[float]], output_dir: Path, itera
                        color='gray', 
                        label=f'Ranks 5+ ({len(remaining_indices)} points)')
     
-    # Plot true Pareto front for ZDT3 (disconnected)
+    # Plot true Pareto front for ZDT3 (disconnected regions)
     problem = ZDT3Problem()
-    true_f1, true_f2 = problem.get_true_pareto_front(1000)
-    plt.plot(true_f1, true_f2, 'r.', markersize=1, label='True Pareto Front', alpha=0.8)
+    true_f1, true_f2 = problem.get_true_pareto_front(2000)
+    plt.plot(true_f1, true_f2, 'r-', linewidth=2, label='True Pareto Front', alpha=0.9)
     
     plt.xlabel('f1')
     plt.ylabel('f2')

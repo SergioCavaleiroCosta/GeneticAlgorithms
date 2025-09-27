@@ -99,13 +99,11 @@ class ZDT3Problem:
         Returns:
             Tuple of (f1_values, f2_values) for the true Pareto front
         """
-        # ZDT3 has disconnected regions. We generate points more densely
-        # to capture the disconnected structure
+        # ZDT3 has disconnected regions with both positive and negative f2 values
         f1 = np.linspace(0, 1, num_points)
         f2 = 1.0 - np.sqrt(f1) - f1 * np.sin(10.0 * np.pi * f1)
         
-        # Filter out points that are not actually on the Pareto front
-        # (ZDT3 has regions where no feasible Pareto optimal solutions exist)
-        valid_mask = f2 >= 0  # Simple validity check
-        
-        return f1[valid_mask], f2[valid_mask]
+        # For ZDT3, the true Pareto front includes negative f2 values
+        # The disconnection comes from the sine term, not from filtering f2 >= 0
+        # So we return all calculated points
+        return f1, f2
