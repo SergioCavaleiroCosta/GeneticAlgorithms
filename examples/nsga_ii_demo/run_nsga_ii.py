@@ -102,8 +102,8 @@ def main() -> None:
     print(f"f2 range: [{min(f2_vals):.4f}, {max(f2_vals):.4f}]")
     print(f"Output written to: {out_dir}")
     
-    # Create final plot
-    plot_pareto_front(objectives, out_dir, -1)
+    # Create final plot with actual final generation number
+    plot_pareto_front(objectives, out_dir, result.iterations)
     print(f"Final Pareto front plot saved to: {out_dir}/final_pareto_front.png")
 
 

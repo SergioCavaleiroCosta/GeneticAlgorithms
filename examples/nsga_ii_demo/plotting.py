@@ -15,13 +15,9 @@ def plot_pareto_front(objectives: list[Sequence[float]], output_dir: Path, itera
     f1_vals = [obj[0] for obj in objectives]
     f2_vals = [obj[1] for obj in objectives]
     
-    # Create appropriate labels based on whether this is final or intermediate plot
-    if iteration >= 0:
-        population_label = f'NSGA-II Population (Gen {iteration})'
-        title = f'NSGA-II on ZDT1 Problem - Generation {iteration}'
-    else:
-        population_label = 'NSGA-II Final Population'
-        title = 'NSGA-II on ZDT1 Problem - Final Result'
+    # Create labels showing the generation number
+    population_label = f'NSGA-II Population (Gen {iteration})'
+    title = f'NSGA-II on ZDT1 Problem - Generation {iteration}'
     
     # Create plot
     plt.figure(figsize=(10, 8))
