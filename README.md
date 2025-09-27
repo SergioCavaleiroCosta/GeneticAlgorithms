@@ -1,13 +1,22 @@
-# Optimization Engine (typed, stage-based)
+# Genetic Algorithms & Multi-Objective Optimization
 
-Strictly typed, Pylance-clean optimization loop with pluggable components and stage-based strategy hooks. No use of `Any`.
+Comprehensive optimization framework with **21 single-objective** and **5 multi-objective** benchmark problems. Features both traditional genetic algorithms and NSGA-II for multi-objective optimization.
 
-Core ideas:
-- Engine orchestrates initialize → iterate (update) → converge.
-- Convergence owns the loop condition via `should_continue(population)` and tracks iterations internally.
-- Evaluation counting lives inside the problem (objective) and is queried by others.
-- Population abstraction supports both single- and multi-candidate flows.
-- Event dispatcher runs strategies per Stage (RUN_START, ITERATION, RUN_END) via a single execute(engine, stage) method.
+**Key Features:**
+- **Single-Objective GA**: 21 classic benchmarks (Ackley, Rosenbrock, Rastrigin, etc.)
+- **Multi-Objective NSGA-II**: 5 benchmarks (ZDT1-3, DTLZ2, Schaffer N.1) with Pareto front visualization
+- **Strictly Typed**: Pylance-clean optimization loop with pluggable components
+- **Stage-based Events**: Hooks for visualization, logging, and analysis
+- **Real-time Plotting**: Dynamic contour plots and Pareto front evolution
+
+## Architecture
+
+Core design principles:
+- Engine orchestrates initialize → iterate (update) → converge
+- Convergence owns the loop condition and tracks iterations internally  
+- Population abstraction supports both single- and multi-candidate flows
+- Event dispatcher runs strategies per Stage (RUN_START, ITERATION, RUN_END)
+- No use of `Any` - fully typed throughout
 
 ## Quickstart
 
@@ -158,36 +167,86 @@ uv run python examples/rastrigin/run_ga.py
 
 All examples share the same core engine and operator abstractions, highlighting reuse.
 
-### Beale (2D)
-Located in `examples/beale/`. Demonstrates:
-- Classic 2D multimodal benchmark with sharp curved valley
-- Direct 2D contour (no projection needed) using the generic plotter
-- Rapid convergence to (3, 0.5)
+### Additional Single-Objective Examples
 
-Run:
+**Beale (2D)** - `examples/beale/`: Classic 2D multimodal benchmark with sharp curved valley
+**Rosenbrock (10D)** - `examples/rosenbrock/`: Narrow curved valley (ill-conditioned) problem  
+**Ackley (10D)** - `examples/ackley/`: Non-separable multimodal benchmark with exponential and cosine terms
+**Booth (2D)** - `examples/booth/`: Simple 2D quadratic with global minimum at (1, 3)
+**Bukin N.6 (2D)** - `examples/bukin6/`: Highly multimodal with narrow global minimum
+**Cross-in-Tray (2D)** - `examples/cross_in_tray/`: Four global minima arranged in cross pattern
+**Easom (2D)** - `examples/easom/`: Flat landscape with single sharp global minimum
+**Goldstein-Price (2D)** - `examples/goldstein_price/`: Multimodal with several local minima
+**Griewank (10D)** - `examples/griewank/`: Product of cosines creates correlation between variables
+**Himmelblau (2D)** - `examples/himmelblau/`: Four identical local minima
+**Holder Table (2D)** - `examples/holder_table/`: Multiple global minima with oscillatory structure
+**Lévi N.13 (2D)** - `examples/levi13/`: Multimodal with global minimum at (1, 1)
+**Matyas (2D)** - `examples/matyas/`: Simple valley-shaped function
+**McCormick (2D)** - `examples/mccormick/`: Asymmetric bounds and single global minimum
+**Schaffer N.2 (2D)** - `examples/schaffer_n2/`: Oscillatory with global minimum at origin
+**Schaffer N.4 (2D)** - `examples/schaffer_n4/`: Similar to N.2 with different parameters
+**Styblinski-Tang (10D)** - `examples/styblinski_tang/`: Multimodal with many local minima
+**Three-Hump Camel (2D)** - `examples/three_hump_camel/`: Three local minima, one global
+
+## Multi-Objective Optimization (NSGA-II)
+
+The framework includes a complete **NSGA-II (Non-dominated Sorting Genetic Algorithm II)** implementation for multi-objective optimization, with five comprehensive benchmark problems:
+
+### Multi-Objective Examples
+
+**ZDT1** - `examples/zdt1/`: Convex Pareto front benchmark
+- Bi-objective optimization with convex trade-off curve
+- Tests basic multi-objective algorithm performance
+
+**ZDT2** - `examples/zdt2/`: Non-convex Pareto front benchmark  
+- Bi-objective with non-convex trade-off curve (f₂ = 1 - f₁²)
+- More challenging than ZDT1 for maintaining diversity
+
+**ZDT3** - `examples/zdt3/`: Disconnected Pareto front benchmark
+- Bi-objective with multiple disconnected Pareto regions
+- Tests algorithm's ability to maintain solutions across separate regions
+
+**DTLZ2** - `examples/dtlz2/`: Scalable multi-objective benchmark
+- Configurable number of objectives (2, 3, 4+)  
+- Spherical Pareto front (quarter-circle, eighth-sphere, hyper-sphere)
+- Tests algorithm scalability to many-objective optimization
+
+**Schaffer N.1** - `examples/schaffer_n1/`: Simple single-variable multi-objective
+- f₁(x) = x², f₂(x) = (x-2)²
+- Perfect for understanding multi-objective concepts
+- Includes both objective space and decision space visualization
+
+### NSGA-II Features
+
+- **Non-dominated Sorting**: Classifies solutions into Pareto fronts
+- **Crowding Distance**: Maintains diversity within each front
+- **Elite Selection**: Combines parent and offspring populations  
+- **Tournament Selection**: Uses both rank and crowding distance
+- **Color-coded Visualization**: Different colors for different Pareto ranks
+- **True Pareto Front Overlay**: Shows theoretical optimal trade-offs
+
+### Running Multi-Objective Examples
+
 ```bash
-uv run python examples/beale/run_ga.py
+# ZDT benchmarks (bi-objective)
+uv run examples/zdt1/run_nsga_ii.py    # Convex front
+uv run examples/zdt2/run_nsga_ii.py    # Non-convex front  
+uv run examples/zdt3/run_nsga_ii.py    # Disconnected front
+
+# Scalable benchmarks
+uv run examples/dtlz2/run_nsga_ii.py   # 2D, 3D, or modify for more objectives
+
+# Educational example
+uv run examples/schaffer_n1/run_nsga_ii.py  # Single variable, easy to understand
 ```
 
-### Rosenbrock (10D)
-Located in `examples/rosenbrock/`. Demonstrates:
-- Narrow curved valley (ill-conditioned) challenging for naive search
-- Uses reduced domain [-2, 2] to focus search near optimum
-- Dynamic best hyperplane slicing via shared contour plotter
+### Running Single-Objective Examples
 
-Run:
 ```bash
-uv run python examples/rosenbrock/run_ga.py
-```
-
-### Ackley (10D)
-Located in `examples/ackley/`. Demonstrates:
-- Non-separable, widely used multimodal benchmark with exponential and cosine terms
-- Larger evaluation/iteration budget due to flat outer region + central basin
-- Dynamic best-solution-driven hyperplane for remaining 8 dimensions
-
-Run:
-```bash
-uv run python examples/ackley/run_ga.py
+# Run any single-objective example
+uv run examples/ackley/run_ga.py
+uv run examples/rosenbrock/run_ga.py
+uv run examples/beale/run_ga.py
+# ... (21 total single-objective benchmarks available)
 ```
 
