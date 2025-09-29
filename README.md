@@ -5,9 +5,38 @@ Comprehensive optimization framework with **21 single-objective** and **5 multi-
 **Key Features:**
 - **Single-Objective GA**: 21 classic benchmarks (Ackley, Rosenbrock, Rastrigin, etc.)
 - **Multi-Objective NSGA-II**: 5 benchmarks (ZDT1-3, DTLZ2, Schaffer N.1) with Pareto front visualization
+- **Comprehensive Analysis**: Automated batch execution with statistical summaries and timing metrics
+- **Enhanced Visualization**: 16pt font sizes, clean layouts, and dynamic plotting
+- **Master Automation Script**: One-command execution of complete analysis pipeline
 - **Strictly Typed**: Pylance-clean optimization loop with pluggable components
 - **Stage-based Events**: Hooks for visualization, logging, and analysis
-- **Real-time Plotting**: Dynamic contour plots and Pareto front evolution
+- **Performance Tracking**: Built-in execution timing and convergence analysis
+
+## Recent Enhancements
+
+### 🎯 Complete Analysis Pipeline
+- **Master Script**: `run_complete_analysis.py` - One command runs entire analysis
+- **2,600 Optimization Runs**: 100 runs × 26 benchmark problems  
+- **Statistical Analysis**: Comprehensive performance metrics with timing
+- **Automated Reporting**: CSV summaries and JSON per-example results
+
+### 📊 Enhanced Visualization  
+- **16pt Font Sizes**: Improved readability for all plots and labels
+- **Clean Layouts**: Removed titles for publication-ready figures
+- **Dynamic Plotting**: Real-time contours and Pareto front evolution
+- **Multi-format Export**: PNG figures with high DPI for presentations
+
+### ⚡ Performance Tracking
+- **Built-in Timing**: Automatic execution time measurement
+- **Convergence Analysis**: Success rates and iteration statistics  
+- **Resource Monitoring**: Population sizes and evaluation counts
+- **Comparative Metrics**: Cross-benchmark performance analysis
+
+### 🚀 Batch Processing
+- **Parallel Execution**: Up to 32 concurrent processes  
+- **Fault Tolerance**: Graceful error handling and recovery
+- **Progress Monitoring**: Real-time status updates with timing
+- **Flexible Configuration**: Customizable runs and concurrency
 
 ## Architecture
 
@@ -120,12 +149,16 @@ state: OptimizationState[float, float] = OptimizationState()
 engine = OptimizationEngine(initializer, updater, convergence, state, dispatcher)
 result = engine.run()
 print("Result:", result.best_solution, result.best_objective)
+print("Execution time:", result.execution_time, "seconds")
+print("Iterations:", result.iterations)
+print("Success:", result.success)
 ```
 
-Notes:
+**Notes:**
 - The engine emits a stage signal with `dispatcher.emit(engine, stage)` at RUN_START, for each ITERATION (from its template step), and at RUN_END.
 - The `Population` always exists; before initialization it may be empty. After `initialize()`, it contains one or more evaluated candidates.
 - Iteration counting and loop control are encapsulated in your `ConvergenceChecker`.
+- **Execution timing** is automatically tracked and available in `result.execution_time`.
 - Evaluation counting is owned by the problem (queried via `problem.get_evaluation_count()`).
 
 ## Included Examples
@@ -222,31 +255,82 @@ The framework includes a complete **NSGA-II (Non-dominated Sorting Genetic Algor
 - **Crowding Distance**: Maintains diversity within each front
 - **Elite Selection**: Combines parent and offspring populations  
 - **Tournament Selection**: Uses both rank and crowding distance
-- **Color-coded Visualization**: Different colors for different Pareto ranks
+- **Enhanced Visualization**: 16pt fonts, clean layouts, color-coded Pareto ranks
 - **True Pareto Front Overlay**: Shows theoretical optimal trade-offs
+- **Performance Analysis**: Hypervolume, spacing, and convergence metrics
 
-### Running Multi-Objective Examples
-
-```bash
-# ZDT benchmarks (bi-objective)
-uv run examples/zdt1/run_nsga_ii.py    # Convex front
-uv run examples/zdt2/run_nsga_ii.py    # Non-convex front  
-uv run examples/zdt3/run_nsga_ii.py    # Disconnected front
-
-# Scalable benchmarks
-uv run examples/dtlz2/run_nsga_ii.py   # 2D, 3D, or modify for more objectives
-
-# Educational example
-uv run examples/schaffer_n1/run_nsga_ii.py  # Single variable, easy to understand
-```
-
-### Running Single-Objective Examples
+### Running Individual Examples
 
 ```bash
-# Run any single-objective example
+# Single-objective examples
 uv run examples/ackley/run_ga.py
 uv run examples/rosenbrock/run_ga.py
 uv run examples/beale/run_ga.py
 # ... (21 total single-objective benchmarks available)
+
+# Multi-objective examples
+uv run examples/zdt1/run_nsga_ii.py    # Convex front
+uv run examples/zdt2/run_nsga_ii.py    # Non-convex front  
+uv run examples/zdt3/run_nsga_ii.py    # Disconnected front
+uv run examples/dtlz2/run_nsga_ii.py   # 2D, 3D, or modify for more objectives
+uv run examples/schaffer_n1/run_nsga_ii.py  # Single variable, easy to understand
 ```
+
+### Comprehensive Analysis & Batch Execution
+
+#### Master Automation Script (Recommended)
+
+```bash
+# Complete analysis pipeline (100 runs, 22 cores) - ONE COMMAND
+uv run python scripts/run_complete_analysis.py
+
+# Quick test run (10 runs, 4 cores)
+uv run python scripts/run_complete_analysis.py --runs 10 --concurrency 4
+
+# High-performance run (100 runs, 32 cores)
+uv run python scripts/run_complete_analysis.py --runs 100 --concurrency 32
+
+# Preview execution without running
+uv run python scripts/run_complete_analysis.py --dry-run
+
+# Skip specific phases
+uv run python scripts/run_complete_analysis.py --skip-cleanup --skip-single
+```
+
+The master script automatically:
+1. **Cleans** existing output directories
+2. **Executes** single-objective batch (21 examples × N runs)
+3. **Executes** multi-objective batch (5 examples × N runs)  
+4. **Generates** comprehensive analysis summaries with timing metrics
+
+#### Manual Batch Execution
+
+```bash
+# Clean previous results
+rm -r examples/*/output_*
+
+# Run 100 cases for all single-objective examples (2100 total runs)
+uv run python scripts/run_batches_multiproc.py -r 100 -c 22
+
+# Run 100 cases for all multi-objective examples (500 total runs)  
+uv run python scripts/run_multiobjective_batches.py --runs 100
+
+# Generate analysis summaries after batch runs
+uv run python scripts/analyze_all_examples.py           # Single-objective analysis
+uv run python scripts/analyze_all_multiobjective.py     # Multi-objective analysis
+```
+
+#### Analysis Output
+
+**Generated Files:**
+- `scripts/all_examples_summary.csv` - Consolidated benchmark comparison
+- `examples/{name}/analysis_summary.json` - Per-example statistical summary  
+- `examples/{name}/analysis_runs.csv` - Per-run detailed results
+
+**Key Metrics:**
+- **Execution Times**: Min, max, mean, median, std dev, quartiles
+- **Best Objectives**: Complete statistical distribution across runs
+- **Convergence**: Iterations, evaluations, success rates
+- **Population**: Size and diversity metrics
+- **Performance**: Timing analysis and resource utilization
 

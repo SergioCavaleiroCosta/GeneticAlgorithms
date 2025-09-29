@@ -70,10 +70,10 @@ def plot_pareto_front(objectives: list[Sequence[float]], output_dir: Path, itera
     true_f1, true_f2 = problem.get_true_pareto_front(100)
     plt.plot(true_f1, true_f2, 'r-', linewidth=2, label='True Pareto Front')
     
-    plt.xlabel('f1')
-    plt.ylabel('f2')
-    plt.title(title)
-    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.xlabel('f1', fontsize=16)
+    plt.ylabel('f2', fontsize=16)
+    plt.tick_params(axis='both', which='major', labelsize=12)
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=12)
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
     

@@ -26,9 +26,6 @@ def plot_pareto_front(objectives: list[Sequence[float]], output_dir: Path, itera
     # Perform non-dominated sorting to get ranks
     fronts = non_dominated_sort(objectives)
     
-    # Create labels showing the generation number
-    title = f'NSGA-II on ZDT1 Problem - Generation {iteration}'
-    
     # Define colors for the first 4 ranks
     colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']  # Blue, Orange, Green, Red
     rank_labels = ['Rank 1 (Best)', 'Rank 2', 'Rank 3', 'Rank 4']
@@ -69,10 +66,10 @@ def plot_pareto_front(objectives: list[Sequence[float]], output_dir: Path, itera
     true_front = true_pareto_front_zdt1(100)
     plt.plot(true_front[:, 0], true_front[:, 1], 'r-', linewidth=2, label='True Pareto Front')
     
-    plt.xlabel('f1')
-    plt.ylabel('f2')
-    plt.title(title)
-    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.xlabel('f1', fontsize=16)
+    plt.ylabel('f2', fontsize=16)
+    plt.tick_params(axis='both', which='major', labelsize=12)
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=12)
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
     

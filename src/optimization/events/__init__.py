@@ -49,6 +49,7 @@ class EventDispatcher(Generic[ST, OT]):
 from .plotting import ContourPopulationPlotter2D  # noqa: E402
 from .population_logging import PopulationLogger, PopulationLoggerConfig  # noqa: E402
 from .frame_saver import FrameSaverStrategy, FrameSaverConfig  # noqa: E402
+from .result_logging import ResultLogger, ResultLoggerConfig  # noqa: E402
 
 __all__ = [
     "Stage",
@@ -60,4 +61,6 @@ __all__ = [
     "PopulationLoggerConfig",
     "FrameSaverStrategy",
     "FrameSaverConfig",
+    "ResultLogger",
+    "ResultLoggerConfig",
 ]

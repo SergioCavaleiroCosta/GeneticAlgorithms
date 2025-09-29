@@ -191,9 +191,9 @@ class ContourPopulationPlotter2D(OptimizationStageStrategy[ST, OT]):
         fig, ax = plt_mod.subplots(figsize=(7, 6))
         i, j = self._resolve_param_indices(engine)
         params = list(engine.parameters)
-        ax.set_title("Population with contour")
-        ax.set_xlabel(params[i].name)
-        ax.set_ylabel(params[j].name)
+        ax.set_xlabel(params[i].name, fontsize=16)
+        ax.set_ylabel(params[j].name, fontsize=16)
+        ax.tick_params(axis='both', which='major', labelsize=12)
         ax.set_xlim(*bounds[0])
         ax.set_ylim(*bounds[1])
         try:

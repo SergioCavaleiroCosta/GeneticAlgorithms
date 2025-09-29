@@ -13,7 +13,7 @@ if str(SRC) not in sys.path:
 from optimization.optimization_engine import OptimizationEngine
 from optimization.state import OptimizationState
 from optimization.convergence_checker import ConvergenceChecker, MaxIterationsStop, MaxEvaluationsStop
-from optimization.events import EventDispatcher, Stage
+from optimization.events import EventDispatcher, Stage, ResultLogger, ResultLoggerConfig
 from optimization.types import NDArrayFloat
 
 from genetic_algorithms import (
@@ -91,6 +91,10 @@ def main() -> None:
     frame_saver = FrameSaverStrategy(plotter, figures_dir, config=FrameSaverConfig(prefix="frame", dpi=120))
     dispatcher.add_strategy(Stage.RUN_START, frame_saver)
     dispatcher.add_strategy(Stage.ITERATION, frame_saver)
+
+    # Result logging
+    result_logger = ResultLogger(out_dir)
+    dispatcher.add_strategy(Stage.RUN_END, result_logger)
 
     engine = OptimizationEngine[NDArrayFloat, float](
         initializer, updater, convergence, state, dispatcher, parameters=parameters

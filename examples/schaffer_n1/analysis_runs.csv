@@ -1,0 +1,2 @@
+run_name,final_generation,total_solutions,non_dominated_solutions,pareto_ratio,hypervolume,hypervolume_all,spacing,generational_distance,inverted_generational_distance,coverage_ratio
+output_20250927-220309,100,50,50,1.0,41.47475768264952,41.47475768264952,0.053870595511817804,0.00329421496556661,0.04191964923586294,0.946

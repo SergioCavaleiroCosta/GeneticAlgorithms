@@ -81,10 +81,10 @@ def _plot_2d_pareto_front(objectives: list[Sequence[float]], output_dir: Path, i
     true_front = problem.get_true_pareto_front(100)
     plt.plot(true_front[:, 0], true_front[:, 1], 'r-', linewidth=2, label='True Pareto Front')
     
-    plt.xlabel('f1')
-    plt.ylabel('f2')
-    plt.title(title)
-    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.xlabel('f1', fontsize=16)
+    plt.ylabel('f2', fontsize=16)
+    plt.tick_params(axis='both', which='major', labelsize=12)
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=12)
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
     
@@ -138,8 +138,8 @@ def _plot_3d_pareto_front(objectives: list[Sequence[float]], output_dir: Path, i
     ax.scatter(true_front[:, 0], true_front[:, 1], true_front[:, 2], 
               c='red', s=1, alpha=0.6, label='True Pareto Front')
     
-    ax.set_xlabel('f1')
-    ax.set_ylabel('f2')
+    ax.set_xlabel('f1', fontsize=16)
+    ax.set_ylabel('f2', fontsize=16)
     ax.set_zlabel('f3')
     ax.set_title(title)
     ax.legend()
@@ -190,8 +190,8 @@ def _plot_high_dim_pareto_front(objectives: list[Sequence[float]], output_dir: P
             rank_fj = [fj_vals[k] for k in front]
             ax.scatter(rank_fi, rank_fj, alpha=0.7, s=20, color=colors[0])
         
-        ax.set_xlabel(f'f{i+1}')
-        ax.set_ylabel(f'f{j+1}')
+        ax.set_xlabel(f'f{i+1}', fontsize=16)
+        ax.set_ylabel(f'f{j+1}', fontsize=16)
         ax.set_title(f'f{i+1} vs f{j+1}')
         ax.grid(True, alpha=0.3)
     

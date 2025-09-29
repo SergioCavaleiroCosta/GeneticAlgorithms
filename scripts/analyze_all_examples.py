@@ -83,25 +83,48 @@ def main() -> int:
         print("No example analyses completed.")
         return 2
 
-    # Build unified CSV header (include dynamic quantile keys)
-    # Collect all keys
+    # Build unified CSV header with flattened nested structure
+    def flatten_summary(summ: Dict[str, Any]) -> Dict[str, Any]:
+        """Flatten nested summary structure for CSV output."""
+        flat = {}
+        for key, value in summ.items():
+            if isinstance(value, dict):
+                for sub_key, sub_value in value.items():
+                    flat[f"{key}_{sub_key}"] = sub_value
+            else:
+                flat[key] = value
+        return flat
+    
+    # Flatten all summaries and collect keys
+    flattened_summaries = []
     all_keys: Set[str] = set()
-    for _, summ in consolidated:
-        all_keys.update(summ.keys())
-    # Order some core keys first
+    for name, summ in consolidated:
+        flat_summ = flatten_summary(summ)
+        flat_summ['example'] = name  # Ensure example name is included
+        flattened_summaries.append((name, flat_summ))
+        all_keys.update(flat_summ.keys())
+    
+    # Order keys logically
     core_order = [
-        "example","best_min","best_max","best_mean","best_median","best_stdev","problem_dimension"
+        "example", "total_runs", "problem_dimension", "population_size"
     ]
-    quantile_keys = sorted([k for k in all_keys if k.startswith("q") and k[1:].isdigit()], key=lambda s: int(s[1:]))
-    remaining = [k for k in all_keys if k not in core_order and k not in quantile_keys]
-    header = core_order + quantile_keys + remaining
+    
+    # Group by metric type
+    best_keys = sorted([k for k in all_keys if k.startswith("best_objective_")])
+    time_keys = sorted([k for k in all_keys if k.startswith("execution_time_")])
+    iter_keys = sorted([k for k in all_keys if k.startswith("iterations_")])
+    eval_keys = sorted([k for k in all_keys if k.startswith("evaluations_")])
+    success_keys = sorted([k for k in all_keys if k.startswith("success_")])
+    
+    remaining = [k for k in all_keys if k not in core_order + best_keys + time_keys + iter_keys + eval_keys + success_keys]
+    header = core_order + best_keys + time_keys + iter_keys + eval_keys + success_keys + remaining
 
     out_csv_path = Path(args.out_csv)
     with out_csv_path.open("w", newline="") as f:
         w = csv.writer(f)
         w.writerow(header)
-        for name, summ in consolidated:
-            row = [summ.get(k, "") for k in header]
+        for name, flat_summ in flattened_summaries:
+            row = [flat_summ.get(k, "") for k in header]
             w.writerow(row)
     print(f"\nConsolidated summary CSV written to {out_csv_path}")
     return 0
