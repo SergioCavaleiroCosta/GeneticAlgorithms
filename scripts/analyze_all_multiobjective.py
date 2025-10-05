@@ -56,6 +56,21 @@ def get_reference_points() -> Dict[str, str]:
     }
 
 
+def flatten_summary(summary: Dict[str, Any]) -> Dict[str, Union[str, int, float]]:
+    """Flatten nested summary structure for CSV export."""
+    flat = {}
+    
+    for key, value in summary.items():
+        if isinstance(value, dict):
+            # Nested statistics - flatten with prefix
+            for sub_key, sub_value in value.items():
+                flat[f"{key}_{sub_key}"] = sub_value
+        else:
+            flat[key] = value
+    
+    return flat
+
+
 def analyze_all_multiobjective_examples(limit: int = 0) -> List[Dict[str, Union[str, int, float]]]:
     """Analyze all multi-objective examples and create per-example analysis files."""
     examples = find_multiobjective_examples()
@@ -95,18 +110,19 @@ def analyze_all_multiobjective_examples(limit: int = 0) -> List[Dict[str, Union[
                 json.dump(summary, f, indent=2)
             print(f"  ✓ Summary: {json_path.relative_to(REPO_ROOT)}")
             
-            # Add the summary to unified results
-            all_results.append(summary)
+            # Flatten summary for CSV and add to unified results
+            flat_summary = flatten_summary(summary)
+            all_results.append(flat_summary)
             
             print(f"  ✓ {summary['valid_runs']} valid runs analyzed")
             
-            # Print key metrics
-            if 'hypervolume_mean' in summary:
-                print(f"  ✓ Hypervolume (mean): {summary['hypervolume_mean']:.6f}")
-            if 'spacing_mean' in summary:
-                print(f"  ✓ Spacing (mean): {summary['spacing_mean']:.6f}")
-            if 'non_dominated_solutions_mean' in summary:
-                print(f"  ✓ Non-dominated solutions (mean): {summary['non_dominated_solutions_mean']:.1f}")
+            # Print key metrics (using nested structure)
+            if 'hypervolume' in summary and isinstance(summary['hypervolume'], dict):
+                print(f"  ✓ Hypervolume (mean): {summary['hypervolume']['mean']:.6f}")
+            if 'spacing' in summary and isinstance(summary['spacing'], dict):
+                print(f"  ✓ Spacing (mean): {summary['spacing']['mean']:.6f}")
+            if 'non_dominated_solutions' in summary and isinstance(summary['non_dominated_solutions'], dict):
+                print(f"  ✓ Non-dominated solutions (mean): {summary['non_dominated_solutions']['mean']:.1f}")
                 
         except Exception as e:
             print(f"  ✗ Error analyzing {example}: {e}")

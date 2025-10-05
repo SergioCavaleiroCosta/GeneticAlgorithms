@@ -32,9 +32,9 @@ def main() -> None:
     
     print(f"Schaffer N.1 Configuration:")
     print(f"  Variables: 1 (x)")
-    print(f"  Domain: x ∈ [{-domain_bound}, {domain_bound}]")
-    print(f"  Objectives: f1(x) = x², f2(x) = (x-2)²")
-    print(f"  Pareto optimal region: x ∈ [0, 2]")
+    print(f"  Domain: x in [{-domain_bound}, {domain_bound}]")
+    print(f"  Objectives: f1(x) = x^2, f2(x) = (x-2)^2")
+    print(f"  Pareto optimal region: x in [0, 2]")
     
     # Parameters (single variable in [-10, 10])
     parameters = [
@@ -107,7 +107,7 @@ def main() -> None:
     print(f"f1 range: [{min(f1_vals):.4f}, {max(f1_vals):.4f}]")
     print(f"f2 range: [{min(f2_vals):.4f}, {max(f2_vals):.4f}]")
     print(f"x range: [{min(x_vals):.4f}, {max(x_vals):.4f}]")
-    print(f"Pareto optimal x ∈ [0, 2]")
+    print(f"Pareto optimal x in [0, 2]")
     print(f"Output written to: {out_dir}")
     
     # Create final plots
