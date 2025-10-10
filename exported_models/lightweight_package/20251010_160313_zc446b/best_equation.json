@@ -1,0 +1,6 @@
+{
+  "best_equation": "((sqrt(u_avg) * ((((ar * (-1.3870003 / lt_1)) + -462.15475) / phi) + 853.9211)) + (((ar / lt_1) * 1.7655247) - -1672.4916)) - (eps_0 * ((150.22725 / u_avg) + -74.18807))",
+  "complexity": 30,
+  "loss": 1379.9141,
+  "performance_rank": "best_accuracy"
+}
