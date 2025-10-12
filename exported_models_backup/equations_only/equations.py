@@ -1,0 +1,253 @@
+"""
+Auto-generated equations from PySR training
+============================================
+
+This module contains the best discovered equations from symbolic regression.
+Each function implements the best-accuracy model for its respective target.
+
+Generated on: 2025-10-10T18:41:49.222547
+Source: sr_expansive_burner multi-target training
+Training config: 1000 iterations, 100 population_size, 30 maxsize, 1e-4 parsimony
+"""
+
+import numpy as np
+from typing import Union, Dict, Any
+
+# Model metadata
+MODEL_INFO = {
+    "20251010_155720_BXNBv9": {
+        "equation": "abs(abs(abs(1.8626698 - abs(abs(3.0440187 - abs((phi + ((sqrt(0.43977848 / u_avg) + -1.2142289) / ar)) / -0.18428192)) + -0.4066447)) + -0.37922555) - 0.18653812) + -0.093743525",
+        "complexity": 30,
+        "loss": 0.034686834,
+        "model_type": "flame_classifier",
+        "target_variable": "alpha",
+        "timestamp": "20251010_155720"
+    },
+    "20251010_160313_zc446b": {
+        "equation": "((sqrt(u_avg) * ((((ar * (-1.3870003 / lt_1)) + -462.15475) / phi) + 853.9211)) + (((ar / lt_1) * 1.7655247) - -1672.4916)) - (eps_0 * ((150.22725 / u_avg) + -74.18807))",
+        "complexity": 30,
+        "loss": 1379.9141,
+        "model_type": "flame_surrogate",
+        "target_variable": "peak_temp",
+        "timestamp": "20251010_160313"
+    },
+    "20251010_160844_ccG5rf": {
+        "equation": "abs(((((98.507645 / (eps_0 / ar)) + (((0.12752481 / eps_0) - phi) * ((((-6375.2983 / eps_1) * (u_avg / eps_1)) + 4761.041) / ar))) + -626.0279) / eps_1) / eps_0)",
+        "complexity": 30,
+        "loss": 1044045.1,
+        "model_type": "flame_surrogate",
+        "target_variable": "pressure_drop",
+        "timestamp": "20251010_160844"
+    },
+    "20251010_161405_hADwyB": {
+        "equation": "((u_avg / ((phi + -0.406628) - ((((u_avg * ar) / (lt_1 / -0.29515895)) / phi) / (a_1 + (4.593294 / k_1))))) * 0.008391324) - (eps_1 * (phi * 0.025041876))",
+        "complexity": 29,
+        "loss": 2.397858e-05,
+        "model_type": "flame_surrogate",
+        "target_variable": "x_peak_temp",
+        "timestamp": "20251010_161405"
+    },
+    "20251010_161934_9E9XY8": {
+        "equation": "((((phi - 0.51329523) * ((-0.44587794 - eps_0) / 0.90183)) + u_avg) + 0.09190615) * ((((((-0.016854757 / lt_1) + -4.325372) / phi) + 12.639172) / ar) + (-0.05732335 / eps_0))",
+        "complexity": 29,
+        "loss": 0.029549813,
+        "model_type": "flame_surrogate",
+        "target_variable": "outlet_velocity",
+        "timestamp": "20251010_161934"
+    },
+    "20251010_162508_k1g9rP": {
+        "equation": "(exp(((-0.21451901 - sqrt(u_avg / ar)) / (phi * 0.7542987)) - ((phi * ((phi + -0.6582989) / u_avg)) * 1.4569359)) * 1.2530051) + (lt_1 * (a_0 * 0.0002242238))",
+        "complexity": 29,
+        "loss": 0.00026152073,
+        "model_type": "flame_surrogate",
+        "target_variable": "radiative_efficiency",
+        "timestamp": "20251010_162508"
+    },
+    "20251010_163026_TlSc6h": {
+        "equation": "abs(((((u_avg * 614.0282) - ((ar / lt_1) * -16.264244)) + -5173.017) + ((2748.215 / (ar * (eps_1 + -0.20049149))) + (1452.7023 / eps_0))) * ((u_avg / eps_1) - 0.7549187))",
+        "complexity": 30,
+        "loss": 410995.47,
+        "model_type": "no_flame_surrogate",
+        "target_variable": "pressure_drop",
+        "timestamp": "20251010_163026"
+    },
+    "20251010_163632_gWjNbU": {
+        "equation": "u_avg / abs(((eps_1 + (((k_0 / (ar + -0.8048682)) * -0.43977597) + (abs(((ar / -1.8562908) + abs(ar + -2.0600653)) / 0.46785295) - ar))) * 0.024131868) + ar)",
+        "complexity": 30,
+        "loss": 0.00011133183,
+        "model_type": "no_flame_surrogate",
+        "target_variable": "outlet_velocity",
+        "timestamp": "20251010_163632"
+    }
+}
+
+def evaluate_equation(equation_str: str, variables: Dict[str, float]) -> float:
+    """
+    Safely evaluate a PySR equation string with given variables.
+    
+    Args:
+        equation_str: The equation string from PySR
+        variables: Dictionary mapping variable names to values
+    
+    Returns:
+        The evaluated result
+    """
+    # Replace common PySR functions with numpy equivalents
+    equation_str = equation_str.replace("sqrt", "np.sqrt")
+    equation_str = equation_str.replace("log", "np.log")
+    equation_str = equation_str.replace("exp", "np.exp")
+    equation_str = equation_str.replace("abs", "np.abs")
+    
+    # Create a safe namespace for evaluation
+    namespace = {"np": np, "__builtins__": {}}
+    namespace.update(variables)
+    
+    try:
+        return eval(equation_str, namespace)
+    except Exception as e:
+        raise ValueError(f"Error evaluating equation '{equation_str}': {e}")
+
+
+def predict_alpha_BXNBv9(variables: Dict[str, float]) -> float:
+    """
+    Predict alpha using flame_classifier model.
+    
+    Target Variable: alpha
+    Equation: abs(abs(abs(1.8626698 - abs(abs(3.0440187 - abs((phi + ((sqrt(0.43977848 / u_avg) + -1.2142289) / ar)) / -0.18428192)) + -0.4066447)) + -0.37922555) - 0.18653812) + -0.093743525
+    Complexity: 30
+    Loss: 3.468683e-02
+    
+    Args:
+        variables: Dict with keys like {'phi', 'ar', 'u_avg', 'eps_0', 'eps_1', ...}
+    
+    Returns:
+        Predicted alpha
+    """
+    equation = "abs(abs(abs(1.8626698 - abs(abs(3.0440187 - abs((phi + ((sqrt(0.43977848 / u_avg) + -1.2142289) / ar)) / -0.18428192)) + -0.4066447)) + -0.37922555) - 0.18653812) + -0.093743525"
+    return evaluate_equation(equation, variables)
+
+def predict_peak_temp_zc446b(variables: Dict[str, float]) -> float:
+    """
+    Predict peak_temp using flame_surrogate model.
+    
+    Target Variable: peak_temp
+    Equation: ((sqrt(u_avg) * ((((ar * (-1.3870003 / lt_1)) + -462.15475) / phi) + 853.9211)) + (((ar / lt_1) * 1.7655247) - -1672.4916)) - (eps_0 * ((150.22725 / u_avg) + -74.18807))
+    Complexity: 30
+    Loss: 1.379914e+03
+    
+    Args:
+        variables: Dict with keys like {'phi', 'ar', 'u_avg', 'eps_0', 'eps_1', ...}
+    
+    Returns:
+        Predicted peak_temp
+    """
+    equation = "((sqrt(u_avg) * ((((ar * (-1.3870003 / lt_1)) + -462.15475) / phi) + 853.9211)) + (((ar / lt_1) * 1.7655247) - -1672.4916)) - (eps_0 * ((150.22725 / u_avg) + -74.18807))"
+    return evaluate_equation(equation, variables)
+
+def predict_pressure_drop_ccG5rf(variables: Dict[str, float]) -> float:
+    """
+    Predict pressure_drop using flame_surrogate model.
+    
+    Target Variable: pressure_drop
+    Equation: abs(((((98.507645 / (eps_0 / ar)) + (((0.12752481 / eps_0) - phi) * ((((-6375.2983 / eps_1) * (u_avg / eps_1)) + 4761.041) / ar))) + -626.0279) / eps_1) / eps_0)
+    Complexity: 30
+    Loss: 1.044045e+06
+    
+    Args:
+        variables: Dict with keys like {'phi', 'ar', 'u_avg', 'eps_0', 'eps_1', ...}
+    
+    Returns:
+        Predicted pressure_drop
+    """
+    equation = "abs(((((98.507645 / (eps_0 / ar)) + (((0.12752481 / eps_0) - phi) * ((((-6375.2983 / eps_1) * (u_avg / eps_1)) + 4761.041) / ar))) + -626.0279) / eps_1) / eps_0)"
+    return evaluate_equation(equation, variables)
+
+def predict_x_peak_temp_hADwyB(variables: Dict[str, float]) -> float:
+    """
+    Predict x_peak_temp using flame_surrogate model.
+    
+    Target Variable: x_peak_temp
+    Equation: ((u_avg / ((phi + -0.406628) - ((((u_avg * ar) / (lt_1 / -0.29515895)) / phi) / (a_1 + (4.593294 / k_1))))) * 0.008391324) - (eps_1 * (phi * 0.025041876))
+    Complexity: 29
+    Loss: 2.397858e-05
+    
+    Args:
+        variables: Dict with keys like {'phi', 'ar', 'u_avg', 'eps_0', 'eps_1', ...}
+    
+    Returns:
+        Predicted x_peak_temp
+    """
+    equation = "((u_avg / ((phi + -0.406628) - ((((u_avg * ar) / (lt_1 / -0.29515895)) / phi) / (a_1 + (4.593294 / k_1))))) * 0.008391324) - (eps_1 * (phi * 0.025041876))"
+    return evaluate_equation(equation, variables)
+
+def predict_outlet_velocity_9E9XY8(variables: Dict[str, float]) -> float:
+    """
+    Predict outlet_velocity using flame_surrogate model.
+    
+    Target Variable: outlet_velocity
+    Equation: ((((phi - 0.51329523) * ((-0.44587794 - eps_0) / 0.90183)) + u_avg) + 0.09190615) * ((((((-0.016854757 / lt_1) + -4.325372) / phi) + 12.639172) / ar) + (-0.05732335 / eps_0))
+    Complexity: 29
+    Loss: 2.954981e-02
+    
+    Args:
+        variables: Dict with keys like {'phi', 'ar', 'u_avg', 'eps_0', 'eps_1', ...}
+    
+    Returns:
+        Predicted outlet_velocity
+    """
+    equation = "((((phi - 0.51329523) * ((-0.44587794 - eps_0) / 0.90183)) + u_avg) + 0.09190615) * ((((((-0.016854757 / lt_1) + -4.325372) / phi) + 12.639172) / ar) + (-0.05732335 / eps_0))"
+    return evaluate_equation(equation, variables)
+
+def predict_radiative_efficiency_k1g9rP(variables: Dict[str, float]) -> float:
+    """
+    Predict radiative_efficiency using flame_surrogate model.
+    
+    Target Variable: radiative_efficiency
+    Equation: (exp(((-0.21451901 - sqrt(u_avg / ar)) / (phi * 0.7542987)) - ((phi * ((phi + -0.6582989) / u_avg)) * 1.4569359)) * 1.2530051) + (lt_1 * (a_0 * 0.0002242238))
+    Complexity: 29
+    Loss: 2.615207e-04
+    
+    Args:
+        variables: Dict with keys like {'phi', 'ar', 'u_avg', 'eps_0', 'eps_1', ...}
+    
+    Returns:
+        Predicted radiative_efficiency
+    """
+    equation = "(exp(((-0.21451901 - sqrt(u_avg / ar)) / (phi * 0.7542987)) - ((phi * ((phi + -0.6582989) / u_avg)) * 1.4569359)) * 1.2530051) + (lt_1 * (a_0 * 0.0002242238))"
+    return evaluate_equation(equation, variables)
+
+def predict_pressure_drop_TlSc6h(variables: Dict[str, float]) -> float:
+    """
+    Predict pressure_drop using no_flame_surrogate model.
+    
+    Target Variable: pressure_drop
+    Equation: abs(((((u_avg * 614.0282) - ((ar / lt_1) * -16.264244)) + -5173.017) + ((2748.215 / (ar * (eps_1 + -0.20049149))) + (1452.7023 / eps_0))) * ((u_avg / eps_1) - 0.7549187))
+    Complexity: 30
+    Loss: 4.109955e+05
+    
+    Args:
+        variables: Dict with keys like {'phi', 'ar', 'u_avg', 'eps_0', 'eps_1', ...}
+    
+    Returns:
+        Predicted pressure_drop
+    """
+    equation = "abs(((((u_avg * 614.0282) - ((ar / lt_1) * -16.264244)) + -5173.017) + ((2748.215 / (ar * (eps_1 + -0.20049149))) + (1452.7023 / eps_0))) * ((u_avg / eps_1) - 0.7549187))"
+    return evaluate_equation(equation, variables)
+
+def predict_outlet_velocity_gWjNbU(variables: Dict[str, float]) -> float:
+    """
+    Predict outlet_velocity using no_flame_surrogate model.
+    
+    Target Variable: outlet_velocity
+    Equation: u_avg / abs(((eps_1 + (((k_0 / (ar + -0.8048682)) * -0.43977597) + (abs(((ar / -1.8562908) + abs(ar + -2.0600653)) / 0.46785295) - ar))) * 0.024131868) + ar)
+    Complexity: 30
+    Loss: 1.113318e-04
+    
+    Args:
+        variables: Dict with keys like {'phi', 'ar', 'u_avg', 'eps_0', 'eps_1', ...}
+    
+    Returns:
+        Predicted outlet_velocity
+    """
+    equation = "u_avg / abs(((eps_1 + (((k_0 / (ar + -0.8048682)) * -0.43977597) + (abs(((ar / -1.8562908) + abs(ar + -2.0600653)) / 0.46785295) - ar))) * 0.024131868) + ar)"
+    return evaluate_equation(equation, variables)

@@ -1,0 +1,6 @@
+{
+  "best_equation": "((u_avg / ((phi + -0.406628) - ((((u_avg * ar) / (lt_1 / -0.29515895)) / phi) / (a_1 + (4.593294 / k_1))))) * 0.008391324) - (eps_1 * (phi * 0.025041876))",
+  "complexity": 29,
+  "loss": 2.397858e-05,
+  "performance_rank": "best_accuracy"
+}

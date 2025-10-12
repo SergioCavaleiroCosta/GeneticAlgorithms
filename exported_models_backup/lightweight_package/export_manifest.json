@@ -1,0 +1,86 @@
+{
+  "export_timestamp": "2025-10-10T18:41:49.155656",
+  "source_project": "sr_expansive_burner",
+  "training_config": {
+    "iterations": 1000,
+    "population_size": 100,
+    "npopulations": 20,
+    "maxsize": 30,
+    "parsimony": 0.0001,
+    "dimensional_penalty": 100000.0
+  },
+  "models": {
+    "20251010_155720_BXNBv9": {
+      "model_type": "flame_classifier",
+      "timestamp": "20251010_155720",
+      "files_exported": [
+        "equations.csv",
+        "best_equation.json",
+        "checkpoint.pkl"
+      ]
+    },
+    "20251010_160313_zc446b": {
+      "model_type": "flame_surrogate",
+      "timestamp": "20251010_160313",
+      "files_exported": [
+        "equations.csv",
+        "best_equation.json",
+        "checkpoint.pkl"
+      ]
+    },
+    "20251010_160844_ccG5rf": {
+      "model_type": "flame_surrogate",
+      "timestamp": "20251010_160844",
+      "files_exported": [
+        "equations.csv",
+        "best_equation.json",
+        "checkpoint.pkl"
+      ]
+    },
+    "20251010_161405_hADwyB": {
+      "model_type": "flame_surrogate",
+      "timestamp": "20251010_161405",
+      "files_exported": [
+        "equations.csv",
+        "best_equation.json",
+        "checkpoint.pkl"
+      ]
+    },
+    "20251010_161934_9E9XY8": {
+      "model_type": "flame_surrogate",
+      "timestamp": "20251010_161934",
+      "files_exported": [
+        "equations.csv",
+        "best_equation.json",
+        "checkpoint.pkl"
+      ]
+    },
+    "20251010_162508_k1g9rP": {
+      "model_type": "flame_surrogate",
+      "timestamp": "20251010_162508",
+      "files_exported": [
+        "equations.csv",
+        "best_equation.json",
+        "checkpoint.pkl"
+      ]
+    },
+    "20251010_163026_TlSc6h": {
+      "model_type": "no_flame_surrogate",
+      "timestamp": "20251010_163026",
+      "files_exported": [
+        "equations.csv",
+        "best_equation.json",
+        "checkpoint.pkl"
+      ]
+    },
+    "20251010_163632_gWjNbU": {
+      "model_type": "no_flame_surrogate",
+      "timestamp": "20251010_163632",
+      "files_exported": [
+        "equations.csv",
+        "best_equation.json",
+        "checkpoint.pkl"
+      ]
+    }
+  }
+}

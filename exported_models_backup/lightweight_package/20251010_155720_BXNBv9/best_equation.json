@@ -1,0 +1,6 @@
+{
+  "best_equation": "abs(abs(abs(1.8626698 - abs(abs(3.0440187 - abs((phi + ((sqrt(0.43977848 / u_avg) + -1.2142289) / ar)) / -0.18428192)) + -0.4066447)) + -0.37922555) - 0.18653812) + -0.093743525",
+  "complexity": 30,
+  "loss": 0.034686834,
+  "performance_rank": "best_accuracy"
+}

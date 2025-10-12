@@ -1,0 +1,6 @@
+{
+  "best_equation": "(exp(((-0.21451901 - sqrt(u_avg / ar)) / (phi * 0.7542987)) - ((phi * ((phi + -0.6582989) / u_avg)) * 1.4569359)) * 1.2530051) + (lt_1 * (a_0 * 0.0002242238))",
+  "complexity": 29,
+  "loss": 0.00026152073,
+  "performance_rank": "best_accuracy"
+}

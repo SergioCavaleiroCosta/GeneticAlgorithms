@@ -2,7 +2,7 @@
 
 This problem optimizes the parameters of a radiative efficiency model
 trained using PySR (Symbolic Regression). The model predicts radiative
-efficiency based on 5 input parameters from fluidized bed combustion.
+efficiency based on 7 input parameters from fluidized bed combustion.
 
 The objective is to MAXIMIZE radiative efficiency by finding optimal
 parameter combinations, but since the GA minimizes, we negate the output.
@@ -10,56 +10,67 @@ parameter combinations, but since the GA minimizes, we negate the output.
 IMPORTANT: Radiative efficiency is only computed when the flame classifier
 (alpha) is above 0.5. If alpha ≤ 0.5, no flame exists and efficiency is 0.
 
-Model Parameters (5 inputs):
+Model Parameters (7 inputs):
 - phi: Equivalence ratio (razão de equivalência)
 - u_avg: Average inlet velocity [m/s] (velocidade média de entrada)
 - ar: Aspect ratio (razão de aspecto)
+- lt_0: First layer thickness [m] (espessura da primeira camada)
 - lt_1: Second layer thickness [m] (espessura da segunda camada)
-- a_0: First layer extinction coefficient [1/m] (coeficiente de extinção da primeira camada)
+- eps_1: Emissivity of second layer (emissividade da segunda camada)
+- a_1: Second layer extinction coefficient [1/m] (coef. extinção 2ª camada)
 
-Two PySR models are used:
-
-1. Flame Classifier (Model ID: 20251010_155720_BXNBv9) - computes alpha:
-   abs(abs(abs(1.8626698 - abs(abs(3.0440187 - abs((phi + ((sqrt(0.43977848 / u_avg) + 
-   -1.2142289) / ar)) / -0.18428192)) + -0.4066447)) + -0.37922555) - 0.18653812) + 
-   -0.093743525
-
-2. Radiative Efficiency (Model ID: 20251010_162508_k1g9rP) - if alpha > 0.5:
-   (exp(((-0.21451901 - sqrt(u_avg / ar)) / (phi * 0.7542987)) - 
-   ((phi * ((phi + -0.6582989) / u_avg)) * 1.4569359)) * 1.2530051) + 
-   (lt_1 * (a_0 * 0.0002242238))
+Two PySR models are used and selected by their target labels in the
+exported metadata: one for ``alpha`` (flame classifier) and one for
+``radiative_efficiency``.
 """
 from __future__ import annotations
 
 import numpy as np
 import sys
 import os
-from typing import Dict
+from typing import Any, Dict, cast
 from optimization.types import NDArrayFloat
 from optimization.optimization_problem import BaseOptimizationProblem
 
-# Add exported_models to path to import the equations
+# Add exported_models to path to import the equations metadata
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'exported_models', 'equations_only'))
 
-try:
-    from equations import predict_alpha_BXNBv9, predict_radiative_efficiency_k1g9rP
-except ImportError:
-    # Fallback: define the functions directly if import fails
-    def predict_alpha_BXNBv9(variables: Dict[str, float]) -> float:
-        """Flame classifier equation from PySR model 20251010_155720_BXNBv9"""
-        phi, u_avg, ar = variables['phi'], variables['u_avg'], variables['ar'] 
-        eq = "abs(abs(abs(1.8626698 - abs(abs(3.0440187 - abs((phi + ((sqrt(0.43977848 / u_avg) + -1.2142289) / ar)) / -0.18428192)) + -0.4066447)) + -0.37922555) - 0.18653812) + -0.093743525"
-        eq = eq.replace("sqrt", "np.sqrt").replace("abs", "np.abs")
-        namespace = {"np": np, "phi": phi, "u_avg": u_avg, "ar": ar}
-        return eval(eq, {"__builtins__": {}}, namespace)
-    
-    def predict_radiative_efficiency_k1g9rP(variables: Dict[str, float]) -> float:
-        """Radiative efficiency equation from PySR model 20251010_162508_k1g9rP"""
-        phi, u_avg, ar, lt_1, a_0 = variables['phi'], variables['u_avg'], variables['ar'], variables['lt_1'], variables['a_0']
-        eq = "(exp(((-0.21451901 - sqrt(u_avg / ar)) / (phi * 0.7542987)) - ((phi * ((phi + -0.6582989) / u_avg)) * 1.4569359)) * 1.2530051) + (lt_1 * (a_0 * 0.0002242238))"
-        eq = eq.replace("sqrt", "np.sqrt").replace("exp", "np.exp")
-        namespace = {"np": np, "phi": phi, "u_avg": u_avg, "ar": ar, "lt_1": lt_1, "a_0": a_0}
-        return eval(eq, {"__builtins__": {}}, namespace)
+# We select equations by target labels and evaluate them locally with a safe namespace
+from equations import MODEL_INFO  # type: ignore
+
+def _safe_eval(eq: str, variables: Dict[str, float]) -> float:
+    # Minimal sanitizer for PySR expressions
+    eq2 = eq.replace('^', '**')
+    ns: dict[str, Any] = {
+        'np': np,
+        'sqrt': np.sqrt,
+        'exp': np.exp,
+        'log': np.log,
+        'abs': np.abs,
+        'tanh': np.tanh,
+        **variables,
+    }
+    # Allow __import__ to avoid KeyError in some multiprocessing contexts
+    return float(eval(eq2, {'__builtins__': {'__import__': __import__}}, ns))  # type: ignore[arg-type]
+
+_alpha_eq: str | None = None
+_eta_eq: str | None = None
+_mi: dict[str, dict[str, Any]] = cast(dict[str, dict[str, Any]], MODEL_INFO)
+for _key, info in _mi.items():
+    target = str(info.get('target_variable', '')).lower()
+    if target == 'alpha' and _alpha_eq is None:
+        _alpha_eq = str(info.get('equation', ''))
+    if target == 'radiative_efficiency' and _eta_eq is None:
+        _eta_eq = str(info.get('equation', ''))
+
+if not _alpha_eq or not _eta_eq:
+    raise RuntimeError('Alpha and radiative_efficiency equations not found in MODEL_INFO')
+
+def predict_alpha_BXNBv9(variables: Dict[str, float]) -> float:
+    return _safe_eval(_alpha_eq, variables)  # type: ignore[arg-type]
+
+def predict_radiative_efficiency_k1g9rP(variables: Dict[str, float]) -> float:
+    return _safe_eval(_eta_eq, variables)  # type: ignore[arg-type]
 
 
 class RadiativeEfficiencyProblem(BaseOptimizationProblem[NDArrayFloat, float]):
@@ -90,18 +101,19 @@ class RadiativeEfficiencyProblem(BaseOptimizationProblem[NDArrayFloat, float]):
         super().__init__()
         self.penalty_weight = penalty_weight
         
-        # Default bounds based on training data ranges
-        # These correspond to the actual ranges used during PySR model training
+        # Updated bounds for current models (union of required variables)
         self.default_bounds = {
-            'phi': (0.3, 0.9),           # Equivalence ratio
-            'u_avg': (0.5, 2.4),         # Average inlet velocity [m/s]
-            'ar': (1.1, 5.0),            # Aspect ratio
-            'lt_1': (0.005, 0.015),      # Second layer thickness [m]
-            'a_0': (1000.0, 1300.0),     # First layer extinction coefficient [1/m]
+            'phi': (0.3, 0.9),            # Equivalence ratio
+            'u_avg': (0.5, 2.4),          # Average inlet velocity [m/s]
+            'ar': (1.1, 5.0),             # Aspect ratio
+            'lt_0': (0.005, 0.015),       # First layer thickness [m]
+            'lt_1': (0.03, 0.08),         # Second layer thickness [m]
+            'eps_1': (0.4, 0.95),         # Emissivity of second layer
+            'a_1': (400.0, 800.0),        # Second layer extinction coefficient [1/m]
         }
-        
+
         self.bounds = bounds if bounds is not None else self.default_bounds
-        self.param_names = ['phi', 'u_avg', 'ar', 'lt_1', 'a_0']
+        self.param_names = ['phi', 'u_avg', 'ar', 'lt_0', 'lt_1', 'eps_1', 'a_1']
         
     def is_feasible(self, solution: NDArrayFloat) -> bool:  # type: ignore[override]
         """Check if solution is feasible.
@@ -112,7 +124,15 @@ class RadiativeEfficiencyProblem(BaseOptimizationProblem[NDArrayFloat, float]):
         Returns:
             True if solution has correct dimensionality
         """
-        return len(solution.ravel()) == 5
+        flat = solution.ravel()
+        if len(flat) != len(self.param_names):
+            return False
+        for i, param_name in enumerate(self.param_names):
+            min_val, max_val = self.bounds[param_name]
+            val = flat[i]
+            if val < min_val or val > max_val:
+                return False
+        return True
         
     def evaluate(self, solution: NDArrayFloat) -> float:
         """Evaluate the radiative efficiency model.
@@ -123,7 +143,7 @@ class RadiativeEfficiencyProblem(BaseOptimizationProblem[NDArrayFloat, float]):
         3. If alpha ≤ 0.5, returns 0 (no flame condition)
         
         Args:
-            solution: Array of 5 parameters [phi, u_avg, ar, lt_1, a_0]
+            solution: Array of 7 parameters [phi, u_avg, ar, lt_0, lt_1, eps_1, a_1]
         
         Returns:
             Negative radiative efficiency (to minimize for maximization)
@@ -132,38 +152,30 @@ class RadiativeEfficiencyProblem(BaseOptimizationProblem[NDArrayFloat, float]):
         self.increment_evaluation_count()
         
         # Extract parameters
-        phi, u_avg, ar, lt_1, a_0 = solution.ravel()[:5]
+        phi, u_avg, ar, lt_0, lt_1, eps_1, a_1 = solution.ravel()[:7]
         
-        # Check bounds and apply penalties
-        penalty = 0.0
-        for i, param_name in enumerate(self.param_names):
-            min_val, max_val = self.bounds[param_name]
-            val = solution.ravel()[i]
-            if val < min_val:
-                penalty += self.penalty_weight * (min_val - val) ** 2
-            elif val > max_val:
-                penalty += self.penalty_weight * (val - max_val) ** 2
-        
+        # Check feasibility (dimensionality and bounds)
+        if not self.is_feasible(solution):
+            return 0.0
         try:
             # Create variables dictionary for PySR models
             variables = {
                 'phi': phi,
                 'u_avg': u_avg,
                 'ar': ar,
+                'lt_0': lt_0,
                 'lt_1': lt_1,
-                'a_0': a_0
+                'eps_1': eps_1,
+                'a_1': a_1,
             }
-            
             # ==========================================
             # STEP 1: Compute Alpha (Flame Classifier)
             # Model: 20251010_155720_BXNBv9
             # ==========================================
             alpha = predict_alpha_BXNBv9(variables)
-            
             # Check if alpha is valid
             if not np.isfinite(alpha):
-                return self.penalty_weight * 10.0 + penalty
-            
+                return self.penalty_weight * 10.0
             # ==========================================
             # STEP 2: Check flame condition (alpha > 0.5)
             # ==========================================
@@ -171,25 +183,21 @@ class RadiativeEfficiencyProblem(BaseOptimizationProblem[NDArrayFloat, float]):
                 # No flame condition - radiative efficiency is 0
                 # Return large positive value (since we're minimizing negative efficiency)
                 # This effectively makes this solution very poor for maximization
-                return 0.0 + penalty
-            
+                return 0.0
             # ==========================================
             # STEP 3: Compute Radiative Efficiency
             # Model: 20251010_162508_k1g9rP
             # Only executed if alpha > 0.5
             # ==========================================
             radiative_efficiency = predict_radiative_efficiency_k1g9rP(variables)
-            
             # Check for NaN or Inf
             if not np.isfinite(radiative_efficiency):
-                return self.penalty_weight * 10.0 + penalty
-            
+                return self.penalty_weight * 10.0
             # Return negative (since we minimize, but want to maximize efficiency)
-            return -float(radiative_efficiency) + penalty
-            
+            return -float(radiative_efficiency)
         except (ZeroDivisionError, FloatingPointError, OverflowError):
             # Numerical error - return large penalty
-            return self.penalty_weight * 10.0 + penalty
+            return self.penalty_weight * 10.0
     
     def get_bounds(self) -> list[tuple[float, float]]:
         """Get parameter bounds in order.
@@ -211,9 +219,9 @@ class RadiativeEfficiencyProblem(BaseOptimizationProblem[NDArrayFloat, float]):
         """Get problem dimensionality.
         
         Returns:
-            5 (number of parameters)
+            7 (number of parameters)
         """
-        return 5
+        return len(self.param_names)
     
     def describe(self) -> str:
         """Get problem description.
@@ -226,9 +234,8 @@ class RadiativeEfficiencyProblem(BaseOptimizationProblem[NDArrayFloat, float]):
             for name in self.param_names
         )
         return (
-            f"Radiative Efficiency Optimization (PySR Model 20251010_162508_k1g9rP)\n"
+            "Radiative Efficiency Optimization (PySR Models)\n"
             f"Dimensions: {self.get_dimension()}\n"
-            f"Objective: Maximize radiative efficiency\n"
-            f"Parameters:\n{bounds_str}\n"
-            f"Model: Symbolic regression equation with complexity 29"
+            "Objective: Maximize radiative efficiency (alpha > 0.5 gate)\n"
+            f"Parameters:\n{bounds_str}"
         )

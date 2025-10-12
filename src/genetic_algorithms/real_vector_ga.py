@@ -103,9 +103,9 @@ class RealVectorGA(UpdateRule[NDArrayFloat, float]):
             c1 = self._mutate(c1)
             c2 = self._mutate(c2)
             # If normalized domain, clamp to [0,1] to keep validity
-            import numpy as np
-            np.clip(c1, 0.0, 1.0, out=c1)
-            np.clip(c2, 0.0, 1.0, out=c2)
+            # import numpy as np
+            # np.clip(c1, 0.0, 1.0, out=c1)
+            # np.clip(c2, 0.0, 1.0, out=c2)
 
             # Evaluate children and append (respect population size)
             for child in (c1, c2):

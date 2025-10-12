@@ -1,0 +1,6 @@
+{
+  "best_equation": "tanh(sqrt(ar * (0.033107847 / sqrt(u_avg))) - (abs((u_avg / (phi - ((tanh(lt_1 / -0.33472285) + 0.530116) / (eps_1 ^ 0.110800155)))) + ((phi - (lt_1 * 7.651003)) / -0.18806067)) * 0.014762474))",
+  "complexity": 34,
+  "loss": 0.00013471884,
+  "performance_rank": "best_accuracy"
+}

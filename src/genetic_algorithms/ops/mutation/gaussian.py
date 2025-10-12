@@ -19,15 +19,27 @@ class GaussianMutation(MutationStrategy[NDArrayFloat]):
         self._np_rng = np.random.default_rng(seed)
 
     def mutate(self, x: NDArrayFloat) -> NDArrayFloat:
-        if self._rng.random() > self._prob:
-            return x
+        # Apply mutation probability per gene, not per individual
+        y = x.copy().astype(np.float64)
+        
+        # Generate mutation mask: each gene has prob chance of being mutated
+        mutation_mask = self._np_rng.random(size=x.shape) < self._prob
+        
+        if not mutation_mask.any():
+            return y  # No genes selected for mutation
+            
+        # Generate noise only for selected genes
         noise = self._np_rng.normal(loc=0.0, scale=self._sigma, size=x.shape).astype(np.float64)
-        y = (x + noise).astype(np.float64)
-        if self._bounds is not None:
-            for i, (lo, hi) in enumerate(self._bounds):
-                lo = float(min(lo, hi))
-                hi = float(max(lo, hi))
-                y[i] = np.clip(y[i], lo, hi)
+        
+        # Apply noise only to selected genes
+        y[mutation_mask] += noise[mutation_mask]
+        
+        # Apply bounds if provided
+        # if self._bounds is not None:
+        #     for i, (lo, hi) in enumerate(self._bounds):
+        #         lo = float(min(lo, hi))
+        #         hi = float(max(lo, hi))
+        #         y[i] = np.clip(y[i], lo, hi)
         return y
 
 __all__ = ["GaussianMutation"]

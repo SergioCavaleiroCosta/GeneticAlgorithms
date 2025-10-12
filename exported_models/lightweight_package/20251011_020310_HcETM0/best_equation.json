@@ -1,0 +1,6 @@
+{
+  "best_equation": "((((10.657699 / lt_0) / eps_1) + (((1907.9698 - ((u_avg * ((-1.929231 / lt_1) - ((242.21515 / ar) / ar))) / (eps_1 ^ (eps_0 - -3.15043)))) + (-9.665854 / lt_0)) / eps_0)) + -2365.6792) * u_avg",
+  "complexity": 35,
+  "loss": 262663.34,
+  "performance_rank": "best_accuracy"
+}

@@ -1,5 +1,5 @@
 {
-  "export_timestamp": "2025-10-10T18:41:49.155656",
+  "export_timestamp": "2025-10-11T18:03:25.842634",
   "source_project": "sr_expansive_burner",
   "training_config": {
     "iterations": 1000,
@@ -10,72 +10,72 @@
     "dimensional_penalty": 100000.0
   },
   "models": {
-    "20251010_155720_BXNBv9": {
+    "20251010_212538_v2sJPa": {
       "model_type": "flame_classifier",
-      "timestamp": "20251010_155720",
+      "timestamp": "20251010_212538",
       "files_exported": [
         "equations.csv",
         "best_equation.json",
         "checkpoint.pkl"
       ]
     },
-    "20251010_160313_zc446b": {
+    "20251011_002313_5y7mPP": {
       "model_type": "flame_surrogate",
-      "timestamp": "20251010_160313",
+      "timestamp": "20251011_002313",
       "files_exported": [
         "equations.csv",
         "best_equation.json",
         "checkpoint.pkl"
       ]
     },
-    "20251010_160844_ccG5rf": {
+    "20251011_004118_5J9e4I": {
       "model_type": "flame_surrogate",
-      "timestamp": "20251010_160844",
+      "timestamp": "20251011_004118",
       "files_exported": [
         "equations.csv",
         "best_equation.json",
         "checkpoint.pkl"
       ]
     },
-    "20251010_161405_hADwyB": {
+    "20251011_010719_oVKpBh": {
       "model_type": "flame_surrogate",
-      "timestamp": "20251010_161405",
+      "timestamp": "20251011_010719",
       "files_exported": [
         "equations.csv",
         "best_equation.json",
         "checkpoint.pkl"
       ]
     },
-    "20251010_161934_9E9XY8": {
+    "20251011_012252_mQd6jn": {
       "model_type": "flame_surrogate",
-      "timestamp": "20251010_161934",
+      "timestamp": "20251011_012252",
       "files_exported": [
         "equations.csv",
         "best_equation.json",
         "checkpoint.pkl"
       ]
     },
-    "20251010_162508_k1g9rP": {
+    "20251011_014513_z5mtkr": {
       "model_type": "flame_surrogate",
-      "timestamp": "20251010_162508",
+      "timestamp": "20251011_014513",
       "files_exported": [
         "equations.csv",
         "best_equation.json",
         "checkpoint.pkl"
       ]
     },
-    "20251010_163026_TlSc6h": {
+    "20251011_020310_HcETM0": {
       "model_type": "no_flame_surrogate",
-      "timestamp": "20251010_163026",
+      "timestamp": "20251011_020310",
       "files_exported": [
         "equations.csv",
         "best_equation.json",
         "checkpoint.pkl"
       ]
     },
-    "20251010_163632_gWjNbU": {
+    "20251011_022928_p5nFcU": {
       "model_type": "no_flame_surrogate",
-      "timestamp": "20251010_163632",
+      "timestamp": "20251011_022928",
       "files_exported": [
         "equations.csv",
         "best_equation.json",

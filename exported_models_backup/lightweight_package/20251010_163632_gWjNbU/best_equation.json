@@ -1,0 +1,6 @@
+{
+  "best_equation": "u_avg / abs(((eps_1 + (((k_0 / (ar + -0.8048682)) * -0.43977597) + (abs(((ar / -1.8562908) + abs(ar + -2.0600653)) / 0.46785295) - ar))) * 0.024131868) + ar)",
+  "complexity": 30,
+  "loss": 0.00011133183,
+  "performance_rank": "best_accuracy"
+}

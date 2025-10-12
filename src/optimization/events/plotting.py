@@ -89,6 +89,8 @@ class ContourPopulationPlotter2D(OptimizationStageStrategy[ST, OT]):
         self._last_best_key: Optional[tuple[float, ...]] = None
         # Headless/interactive mode toggle
         self._interactive = bool(interactive)
+        # Human-friendly label of fixed parameter values used for the contour
+        self._fixed_info_label = None
 
     # ------------------------------------------------------------------
     def _resolve_param_indices(self, engine: "OptimizationEngine[ST, OT]") -> Tuple[int, int]:
@@ -122,8 +124,7 @@ class ContourPopulationPlotter2D(OptimizationStageStrategy[ST, OT]):
         ]
 
     def _build_grid(self, engine: "OptimizationEngine[ST, OT]", bounds: list[Tuple[float, float]]) -> tuple[Any, Any, Any]:
-        if self._grid_cache is not None:
-            return self._grid_cache
+        # Sempre recalcula o grid, ignorando o cache
         (x_min, x_max), (y_min, y_max) = bounds
         xs = np.linspace(x_min, x_max, self._grid_size, dtype=np.float64)
         ys = np.linspace(y_min, y_max, self._grid_size, dtype=np.float64)
@@ -138,6 +139,7 @@ class ContourPopulationPlotter2D(OptimizationStageStrategy[ST, OT]):
         state = getattr(engine, "_state", None)
         use_best = (not self._fixed_values) and state is not None and hasattr(state, "best_solution")
         best_real: list[float] | None = None
+        
         if use_best:
             try:
                 # best_solution is normalized; convert to real
@@ -146,23 +148,34 @@ class ContourPopulationPlotter2D(OptimizationStageStrategy[ST, OT]):
                 for idx2, p in enumerate(params):
                     nb = norm_best[idx2] if idx2 < norm_best.shape[0] else 0.0
                     try:
-                        best_real.append(float(p.normalizer.to_real(float(nb))))
+                        real_val = float(p.normalizer.to_real(float(nb)))
+                        best_real.append(real_val)
                     except Exception:
                         best_real.append(float(nb))
             except Exception:
                 best_real = None
+        fixed_parts: list[str] = []
         for idx, p in enumerate(params):
             if idx in (i, j):
                 continue
             name = p.name
             if name in self._fixed_values:
                 base[idx] = float(self._fixed_values[name])
+                fixed_parts.append(f"{name}={base[idx]:.4g}")
             elif best_real is not None:
                 base[idx] = best_real[idx]
+                fixed_parts.append(f"{name}={base[idx]:.4g}")
             elif self._midpoint_fallback:
                 base[idx] = 0.5 * (p.normalizer.lo + p.normalizer.hi)
+                fixed_parts.append(f"{name}~mid={base[idx]:.4g}")
             else:
                 base[idx] = p.normalizer.lo
+                fixed_parts.append(f"{name}~lo={base[idx]:.4g}")
+        # Store a compact label for figure title
+        try:
+            self._fixed_info_label = ", ".join(fixed_parts)
+        except Exception:
+            self._fixed_info_label = None
 
         # Evaluate grid
         prev_eval = engine.problem.evaluation_count
@@ -173,7 +186,7 @@ class ContourPopulationPlotter2D(OptimizationStageStrategy[ST, OT]):
             vec[i] = x_val
             vec[j] = y_val
             try:
-                vals.append(float(engine.problem.evaluate(cast(Any, vec))))
+                vals.append(float(engine.problem.evaluate(cast(Any, vec))))  # type: ignore[arg-type]
             except Exception:
                 vals.append(np.nan)
         try:
@@ -181,8 +194,7 @@ class ContourPopulationPlotter2D(OptimizationStageStrategy[ST, OT]):
         except Exception:
             pass
         Z = np.asarray(vals, dtype=np.float64).reshape(shape)
-        self._grid_cache = (X, Y, Z)
-        return self._grid_cache
+        return (X, Y, Z)
 
     def _setup_figure(self, bounds: list[Tuple[float, float]], engine: "OptimizationEngine[ST, OT]") -> None:
         plt_mod = cast(Any, plt)
@@ -253,6 +265,9 @@ class ContourPopulationPlotter2D(OptimizationStageStrategy[ST, OT]):
     def execute(self, engine: "OptimizationEngine[ST, OT]", stage: Stage) -> None:
         if stage == Stage.RUN_START:
             bounds = self._compute_bounds(engine)
+            # Invalidate any existing grid cache at the start of a run
+            self._grid_cache = None
+            self._last_best_key = None
             self._setup_figure(bounds, engine)
             if engine.population.size > 0:
                 pts = np.asarray(engine.population.candidates, dtype=np.float64)
@@ -261,41 +276,37 @@ class ContourPopulationPlotter2D(OptimizationStageStrategy[ST, OT]):
         elif stage == Stage.ITERATION:
             if self._fig is None:
                 return
-            self._tick += 1
-            if (self._tick % self._update_every) != 0:
-                return
-            # Invalidate grid cache if best solution changed (when using dynamic best fill)
-            if not self._fixed_values:
-                try:
-                    state = getattr(engine, "_state", None)
-                    if state is not None:
-                        norm_best = tuple(float(x) for x in state.best_solution)  # type: ignore[attr-defined]
-                    else:
-                        norm_best = ()
-                    if norm_best != self._last_best_key:
-                        self._grid_cache = None
-                        self._last_best_key = norm_best
-                        # Replot contour if present
-                        if self._ax is not None and self._contour is not None:
-                            try:
-                                bounds = self._compute_bounds(engine)
-                                X, Y, Z = self._build_grid(engine, bounds)
-                                for c in self._contour.collections:
-                                    c.remove()
-                                self._contour = self._ax.contourf(X, Y, Z, levels=self._contour_levels, cmap="viridis")
-                                # After replotting contour, push scatter (if any) back to front
-                                if self._scatter is not None:
-                                    try:
-                                        base_z = 1
-                                        if self._contour is not None and self._contour.collections:
-                                            base_z = max(col.get_zorder() for col in self._contour.collections)
-                                        self._scatter.set_zorder(base_z + 1)
-                                    except Exception:
-                                        pass
-                            except Exception:
-                                pass
-                except Exception:
-                    pass
+            self._tick += 1  # Increment tick for FrameSaver compatibility
+            
+            # Recompute contour every iteration (always use best individual for fixed dims)
+            try:
+                if self._ax is not None and self._contour is not None:
+                    self._grid_cache = None
+                    # Track best key (normalized) for info/cache
+                    if not self._fixed_values:
+                        state = getattr(engine, "_state", None)
+                        if state is not None:
+                            self._last_best_key = tuple(float(x) for x in state.best_solution)  # type: ignore[attr-defined]
+                        else:
+                            self._last_best_key = None
+                    bounds = self._compute_bounds(engine)
+                    X, Y, Z = self._build_grid(engine, bounds)
+                    # Clear the axis and redraw everything (contour + colorbar will be recreated)
+                    self._ax.clear()
+                    # Reset scatter reference since axis was cleared
+                    self._scatter = None
+                    # Reset axis properties
+                    i, j = self._resolve_param_indices(engine)
+                    params = list(engine.parameters)
+                    self._ax.set_xlabel(params[i].name, fontsize=16)
+                    self._ax.set_ylabel(params[j].name, fontsize=16)
+                    self._ax.tick_params(axis='both', which='major', labelsize=12)
+                    self._ax.set_xlim(*bounds[0])
+                    self._ax.set_ylim(*bounds[1])
+                    # Redraw contour
+                    self._contour = self._ax.contourf(X, Y, Z, levels=self._contour_levels, cmap="viridis")
+            except Exception:
+                pass
             pts = np.asarray(engine.population.candidates, dtype=np.float64)
             if pts.size == 0:
                 return
