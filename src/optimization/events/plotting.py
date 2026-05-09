@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Any, Mapping, Optional, Tuple, TYPE_CHECKING, cast
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FuncFormatter
 
 from ..types import NDArrayFloat, ST, OT
 from . import OptimizationStageStrategy, Stage
@@ -91,6 +92,28 @@ class ContourPopulationPlotter2D(OptimizationStageStrategy[ST, OT]):
         self._interactive = bool(interactive)
         # Human-friendly label of fixed parameter values used for the contour
         self._fixed_info_label = None
+
+    @staticmethod
+    def _format_decimal_tick(value: float, _position: int) -> str:
+        if not np.isfinite(value):
+            return ""
+        if np.isclose(value, 0.0):
+            value = 0.0
+        return f"{value:g}".replace(".", ",")
+
+    def _apply_decimal_formatters(self) -> None:
+        if self._fig is None or self._ax is None:
+            return
+
+        formatter = FuncFormatter(self._format_decimal_tick)
+        self._ax.xaxis.set_major_formatter(formatter)
+        self._ax.yaxis.set_major_formatter(formatter)
+
+        for axis in self._fig.axes:
+            if axis is self._ax:
+                continue
+            axis.xaxis.set_major_formatter(formatter)
+            axis.yaxis.set_major_formatter(formatter)
 
     # ------------------------------------------------------------------
     def _resolve_param_indices(self, engine: "OptimizationEngine[ST, OT]") -> Tuple[int, int]:
@@ -216,6 +239,7 @@ class ContourPopulationPlotter2D(OptimizationStageStrategy[ST, OT]):
             self._contour = None
         self._fig = fig
         self._ax = ax
+        self._apply_decimal_formatters()
         if self._interactive:
             plt_mod.show(block=False)
 
@@ -305,6 +329,7 @@ class ContourPopulationPlotter2D(OptimizationStageStrategy[ST, OT]):
                     self._ax.set_ylim(*bounds[1])
                     # Redraw contour
                     self._contour = self._ax.contourf(X, Y, Z, levels=self._contour_levels, cmap="viridis")
+                    self._apply_decimal_formatters()
             except Exception:
                 pass
             pts = np.asarray(engine.population.candidates, dtype=np.float64)

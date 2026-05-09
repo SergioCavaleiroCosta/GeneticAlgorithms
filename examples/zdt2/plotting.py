@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Sequence
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.ticker import FuncFormatter
 
 # Make project src/ importable
 import sys
@@ -15,6 +16,14 @@ if str(SRC) not in sys.path:
 
 from nsga_ii.pareto_utils import non_dominated_sort
 from .problems import ZDT2Problem
+
+
+def _format_decimal_tick(value: float, _position: int) -> str:
+    if not np.isfinite(value):
+        return ""
+    if np.isclose(value, 0.0):
+        value = 0.0
+    return f"{value:g}".replace(".", ",")
 
 
 def plot_pareto_front(objectives: list[Sequence[float]], output_dir: Path, iteration: int = -1) -> None:
@@ -69,6 +78,11 @@ def plot_pareto_front(objectives: list[Sequence[float]], output_dir: Path, itera
     problem = ZDT2Problem()
     true_f1, true_f2 = problem.get_true_pareto_front(100)
     plt.plot(true_f1, true_f2, 'r-', linewidth=2, label='True Pareto Front')
+
+    formatter = FuncFormatter(_format_decimal_tick)
+    ax = plt.gca()
+    ax.xaxis.set_major_formatter(formatter)
+    ax.yaxis.set_major_formatter(formatter)
     
     plt.xlabel('f1', fontsize=16)
     plt.ylabel('f2', fontsize=16)

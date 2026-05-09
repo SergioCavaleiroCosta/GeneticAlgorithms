@@ -8,6 +8,24 @@ import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
+from matplotlib.ticker import FuncFormatter
+
+
+def _format_decimal(value: float, decimals: int | None = None) -> str:
+    """Format numeric values with decimal comma for figure text."""
+    if not np.isfinite(value):
+        return ""
+    if np.isclose(value, 0.0):
+        value = 0.0
+    if decimals is None:
+        text = f"{value:g}"
+    else:
+        text = f"{value:.{decimals}f}"
+    return text.replace(".", ",")
+
+
+def _decimal_tick_formatter(value: float, _position: int) -> str:
+    return _format_decimal(value)
 
 
 def load_pareto_data(output_dir: Path) -> dict:
@@ -51,7 +69,8 @@ def plot_pareto_front(
     Returns:
         Matplotlib Figure object
     """
-    fig, ax = plt.subplots(figsize=(10, 8))
+    common_fontsize = 14
+    fig, ax = plt.subplots(figsize=(10 - 5 / 72, 6.4))
     
     # Convert first objective back to positive (η)
     eta = -objectives[:, 0]
@@ -59,26 +78,35 @@ def plot_pareto_front(
     
     # Plot Pareto front
     ax.scatter(eta, pressure_drop, c='red', s=100, alpha=0.7, 
-               edgecolors='black', linewidths=1.5, zorder=5, label='Frente de Pareto')
+               edgecolors='black', linewidths=1.5, zorder=5, label='Fronteira de Pareto')
     
     # Plot connecting line
     sorted_indices = np.argsort(eta)
     ax.plot(eta[sorted_indices], pressure_drop[sorted_indices], 
             'k--', alpha=0.3, linewidth=1, zorder=1)
     
-    ax.set_xlabel(r'Eficiência radiativa ($\eta$)', fontsize=14)
-    ax.set_ylabel(r'Queda de pressão ($\Delta P$, Pa)', fontsize=14)
+    formatter = FuncFormatter(_decimal_tick_formatter)
+    ax.xaxis.set_major_formatter(formatter)
+    ax.yaxis.set_major_formatter(formatter)
+    ax.set_xlabel(r'$\eta_{\mathrm{rad}}$', fontsize=common_fontsize)
+    ax.set_ylabel(r'$\Delta p$ [Pa]', fontsize=common_fontsize)
+    ax.tick_params(axis='both', which='major', labelsize=common_fontsize)
     ax.grid(True, alpha=0.3, linestyle='--')
-    ax.legend(fontsize=12)
+    ax.legend(fontsize=common_fontsize)
     
     # Add some statistics
+    eta_interval = f"[{_format_decimal(eta.min(), 4)}, {_format_decimal(eta.max(), 4)}]"
+    pressure_interval = (
+        f"[{_format_decimal(pressure_drop.min(), 1)}, "
+        f"{_format_decimal(pressure_drop.max(), 1)}] Pa"
+    )
     stats_text = (
         f'Soluções de Pareto: {len(eta)}\n'
-        f'$\\eta$ intervalo: [{eta.min():.4f}, {eta.max():.4f}]\n'
-        f'$\\Delta P$ intervalo: [{pressure_drop.min():.1f}, {pressure_drop.max():.1f}] Pa'
+        f'$\\eta_{{\\mathrm{{rad}}}}$ intervalo: {eta_interval}\n'
+        f'$\\Delta p$ intervalo: {pressure_interval}'
     )
     ax.text(0.02, 0.98, stats_text, transform=ax.transAxes,
-            fontsize=10, verticalalignment='top',
+            fontsize=common_fontsize, verticalalignment='top',
             bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
     
     plt.tight_layout()

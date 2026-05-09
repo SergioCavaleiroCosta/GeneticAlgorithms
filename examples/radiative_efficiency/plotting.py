@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 import numpy as np
+from matplotlib.ticker import FuncFormatter
 
 from optimization.events import ContourPopulationPlotter2D, Stage
 
@@ -62,6 +63,38 @@ class RadiativeEfficiencyPlotter(ContourPopulationPlotter2D):  # type: ignore[ty
             midpoint_fallback=midpoint_fallback,
             interactive=interactive,
         )
+
+    @staticmethod
+    def _format_decimal_tick(value: float, _position: int) -> str:
+        if not np.isfinite(value):
+            return ""
+        if np.isclose(value, 0.0):
+            value = 0.0
+        return f"{value:g}".replace(".", ",")
+
+    def _apply_decimal_formatters(self) -> None:
+        formatter = FuncFormatter(self._format_decimal_tick)
+
+        if self._ax is not None:
+            self._ax.xaxis.set_major_formatter(formatter)
+            self._ax.yaxis.set_major_formatter(formatter)
+
+        if self._fig is not None:
+            for axis in self._fig.axes:
+                if axis is self._ax:
+                    continue
+                axis.xaxis.set_major_formatter(formatter)
+                axis.yaxis.set_major_formatter(formatter)
+
+    def _apply_colorbar_label(self) -> None:
+        if self._fig is None:
+            return
+
+        for axis in self._fig.axes:
+            if axis is self._ax:
+                continue
+            axis.set_ylabel(r"$\eta_{\mathrm{rad}}$", fontsize=16)
+            axis.tick_params(axis="y", which="major", labelsize=12)
     
     def _build_grid(self, engine: "OptimizationEngine[ST, OT]", bounds: list[tuple[float, float]]) -> tuple[object, object, object]:
         """Build grid with absolute value for efficiency (positive values)."""
@@ -76,6 +109,8 @@ class RadiativeEfficiencyPlotter(ContourPopulationPlotter2D):  # type: ignore[ty
         
         # Override axis labels with LaTeX formatting
         self._update_axis_labels(engine)
+        self._apply_decimal_formatters()
+        self._apply_colorbar_label()
     
     def _update_axis_labels(self, engine: "OptimizationEngine[ST, OT]") -> None:
         """Update axis labels with LaTeX formatting."""
@@ -90,12 +125,12 @@ class RadiativeEfficiencyPlotter(ContourPopulationPlotter2D):  # type: ignore[ty
             if xlabel == "phi":
                 xlabel = r"$\phi$"
             elif xlabel == "u_avg":
-                xlabel = r"$u_\mathrm{avg}$ (m/s)"
+                xlabel = r"$\overline{u}$ [m.s$^{-1}$]"
             
             if ylabel == "phi":
                 ylabel = r"$\phi$"
             elif ylabel == "u_avg":
-                ylabel = r"$u_\mathrm{avg}$ (m/s)"
+                ylabel = r"$\overline{u}$ [m.s$^{-1}$]"
             
             self._ax.set_xlabel(xlabel, fontsize=16)
             self._ax.set_ylabel(ylabel, fontsize=16)
@@ -104,9 +139,10 @@ class RadiativeEfficiencyPlotter(ContourPopulationPlotter2D):  # type: ignore[ty
         """Execute with custom labels applied after parent execution."""
         super().execute(engine, stage)
         
-        # Reapply custom labels after iteration updates (parent clears axis)
-        if stage == Stage.ITERATION and self._ax is not None:
+        if stage in (Stage.RUN_START, Stage.ITERATION) and self._ax is not None:
             self._update_axis_labels(engine)
+            self._apply_decimal_formatters()
+            self._apply_colorbar_label()
 
 
 __all__ = ["RadiativeEfficiencyPlotter"]

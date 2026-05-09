@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Sequence
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.ticker import FuncFormatter
 
 # Make project src/ importable
 import sys
@@ -15,6 +16,14 @@ if str(SRC) not in sys.path:
 
 from nsga_ii.pareto_utils import non_dominated_sort
 from .problems import DTLZ2Problem
+
+
+def _format_decimal_tick(value: float, _position: int) -> str:
+    if not np.isfinite(value):
+        return ""
+    if np.isclose(value, 0.0):
+        value = 0.0
+    return f"{value:g}".replace(".", ",")
 
 
 def plot_pareto_front(objectives: list[Sequence[float]], output_dir: Path, iteration: int = -1, num_objectives: int = 2) -> None:
@@ -80,6 +89,11 @@ def _plot_2d_pareto_front(objectives: list[Sequence[float]], output_dir: Path, i
     problem = DTLZ2Problem(num_objectives=2)
     true_front = problem.get_true_pareto_front(100)
     plt.plot(true_front[:, 0], true_front[:, 1], 'r-', linewidth=2, label='True Pareto Front')
+
+    formatter = FuncFormatter(_format_decimal_tick)
+    ax = plt.gca()
+    ax.xaxis.set_major_formatter(formatter)
+    ax.yaxis.set_major_formatter(formatter)
     
     plt.xlabel('f1', fontsize=16)
     plt.ylabel('f2', fontsize=16)
@@ -141,6 +155,10 @@ def _plot_3d_pareto_front(objectives: list[Sequence[float]], output_dir: Path, i
     ax.set_xlabel('f1', fontsize=16)
     ax.set_ylabel('f2', fontsize=16)
     ax.set_zlabel('f3')
+    formatter = FuncFormatter(_format_decimal_tick)
+    ax.xaxis.set_major_formatter(formatter)
+    ax.yaxis.set_major_formatter(formatter)
+    ax.zaxis.set_major_formatter(formatter)
     ax.set_title(title)
     ax.legend()
     
@@ -192,6 +210,9 @@ def _plot_high_dim_pareto_front(objectives: list[Sequence[float]], output_dir: P
         
         ax.set_xlabel(f'f{i+1}', fontsize=16)
         ax.set_ylabel(f'f{j+1}', fontsize=16)
+        formatter = FuncFormatter(_format_decimal_tick)
+        ax.xaxis.set_major_formatter(formatter)
+        ax.yaxis.set_major_formatter(formatter)
         ax.set_title(f'f{i+1} vs f{j+1}')
         ax.grid(True, alpha=0.3)
     
